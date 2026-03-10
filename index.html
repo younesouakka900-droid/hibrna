@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>MangaVerse — منصة المانجا العربية</title>
 <meta name="description" content="منصة المانجا والإبداع العربي — اقرأ وانشر وشارك أعمالك">
 <meta property="og:site_name" content="MangaVerse">
@@ -107,12 +107,15 @@ onAuthStateChanged(auth, async user=>{
     const adminBtn=G("nav-admin-btn");
     if(adminBtn) adminBtn.style.display=isAdmin()?"inline-flex":"none";
     // شغّل المستمع الفوري للإشعارات (real-time)
-    setTimeout(()=> window.startNotifListener && startNotifListener(), 800);
+    setTimeout(()=> {
+      window.startNotifListener && startNotifListener();
+      window.startChatBadgeListener && startChatBadgeListener();
+    }, 800);
     // ✅ إعادة ضبط القفل دائماً عند تغيير الحساب
     window._openingWork = false;
     window._openingWorkTs = 0;
     // ✅ أعد تحميل البطاقات دائماً عند تسجيل الدخول لضمان ظهور زر الحذف/التعديل الصحيح
-    loadWorks(); loadHeroSlider(); loadTrending();
+    loadWorks(); loadHeroSlider(); loadTrending(); loadPlatformStats();
     if(window._curPage==="profile") loadProfile();
     if(window._curPage==="library") loadLibrary();
   } else {
@@ -487,7 +490,6 @@ window.loadTrending = async () => {
     }
 
   } catch(e) {
-    console.error("loadTrending error:", e);
     if(tGrid) tGrid.innerHTML = '<div class="empty-state" style="grid-column:1/-1">❌ خطأ في التحميل</div>';
   }
 };
@@ -495,6 +497,21 @@ window.loadTrending = async () => {
 // ─── LOAD WORKS مع Pagination ───
 window._lastDoc    = null;
 window._filterGenre = "all";
+window._filterType  = "مانجا";   // فلتر النوع (التبويبات) — مانجا افتراضياً
+
+window.setTypeTab = (btn, type) => {
+  // تحديث الأزرار
+  document.querySelectorAll(".ttab").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  window._filterType = type;
+  // تحديث chip التصنيف في الفلاتر المتقدمة أيضاً
+  document.querySelectorAll("#adv-type-chips .achip").forEach(b => {
+    b.classList.toggle("active", b.dataset.val === type);
+  });
+  // إعادة تحميل
+  window._lastDoc = null;
+  loadWorks("all", window._searchQ || "");
+};
 window._searchQ    = "";
 window._noMore     = false;
 
@@ -525,6 +542,10 @@ window.loadWorks=async(filterGenre="all", searchQ="", append=false)=>{
     let works=[];
     snap.forEach(d=>works.push({id:d.id,...d.data()}));
 
+    // فلتر النوع (تبويبات)
+    if(window._filterType && window._filterType !== "all")
+      works = works.filter(w => w.type === window._filterType);
+    // فلتر النوع الأدبي (Genre)
     if(filterGenre!=="all") works=works.filter(w=>w.genre===filterGenre||w.type===filterGenre);
     if(searchQ){
       const q=searchQ.toLowerCase();
@@ -556,7 +577,9 @@ window.loadWorks=async(filterGenre="all", searchQ="", append=false)=>{
     }
     _updateLoadMoreBtn(!window._noMore && filterGenre==="all" && !searchQ);
 
-  }catch(e){ if(!append) grid.innerHTML='<div class="empty-state">❌ خطأ في التحميل</div>'; }
+  }catch(e){ 
+    if(!append) grid.innerHTML=`<div class="empty-state">❌ خطأ: ${e.message||e}</div>`; 
+  }
 };
 
 function _updateLoadMoreBtn(show){
@@ -711,11 +734,9 @@ window.openWork=async id=>{
     if(Date.now() - (window._openingWorkTs||0) > 3000){
       window._openingWork = false;
     } else {
-      console.warn("openWork blocked by lock, id:", id);
       return;
     }
   }
-  console.log("openWork called:", id, "CU:", window.CU?.email);
   window._openingWork = true;
   window._openingWorkTs = Date.now();
   // timeout احتياطي: إلغاء القفل بعد 8 ثوانٍ على أقصى تقدير
@@ -729,7 +750,7 @@ window.openWork=async id=>{
   Promise.all([
     updateDoc(doc(db,"works",id),{views:increment(1)}),
     w.authorId ? setDoc(doc(db,"users",w.authorId),{totalViews:increment(1)},{merge:true}) : Promise.resolve()
-  ]).catch(e=> console.warn("views update failed (non-critical):", e.message));
+  ]).catch(()=>{});
 
   G("wm-cover").innerHTML=w.coverUrl
     ?`<img src="${w.coverUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:12px;">`
@@ -806,6 +827,13 @@ window.openWork=async id=>{
     rb.textContent="📖 قراءة العمل";
     rb.onclick=()=>window.open(w.fileUrl,"_blank");
   } else { rb.textContent="📄 لا يوجد ملف"; rb.onclick=()=>{}; }
+
+  // أعمال مشابهة
+  loadSimilarWorks(id, w.genre||"", w.type||"");
+
+  // زر الإبلاغ — يظهر فقط لغير المالك
+  const reportWrap = G("wm-report-wrap");
+  if(reportWrap) reportWrap.style.display = (CU && w.authorId !== CU.uid) ? "block" : "none";
 
   // زر الفصول — تحقق من وجود فصول
   const chapBtn = G("wm-chapters-btn");
@@ -887,7 +915,7 @@ window.openWork=async id=>{
   window._shareWorkUrl   = _workUrl;
   window._shareWorkDesc  = w.desc || "";
   openModal("m-work");
-  }catch(e){ console.error("openWork error:",e.message,e.stack); }
+  }catch(e){ }
   finally{ clearTimeout(_owTimeout); window._openingWork=false; }
 };
 
@@ -1108,33 +1136,87 @@ window.closeReader=async ()=>{
 };
 
 // ─── PDF VIEWER ───
-window.openPdfViewer=(src, title, w)=>{
-  const pg = G("pdf-viewer-page");
-  G("pdf-viewer-title").textContent = title||"";
-  const fr = G("pdf-frame");
-  if(src.startsWith("http")){
-    // استخدم Google Docs Viewer للـ PDF — يعمل على كل الأجهزة
-    const isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
-    if(isMobile){
-      // على الموبايل: افتح في تبويب جديد مباشرة
-      window.open(src, "_blank");
-      return;
-    }
-    // على الكمبيوتر: استخدم iframe مع Google Docs
-    fr.src = "https://docs.google.com/viewer?embedded=true&url=" + encodeURIComponent(src);
-  } else {
-    fr.src = src;
-  }
-  pg.style.display = "flex";
+// ─── قارئ PDF مدمج بـ PDF.js ───
+let _pdfDoc = null, _pdfPage = 1, _pdfTotal = 0, _pdfSrc = "";
+let _pdfRendering = false;
+
+window.openPdfViewer = async (src, title, w) => {
+  _pdfSrc = src;
+  G("pdf-viewer-title").textContent = title || "";
+  G("pdf-viewer-page").style.display = "flex";
   document.body.style.overflow = "hidden";
-  G("pdf-download-btn").onclick = () => {
-    window.open(src, "_blank");
-  };
+  G("pdf-canvas-wrap").innerHTML = '<div style="text-align:center;padding:3rem;color:rgba(255,255,255,.5)"><span class="spin" style="font-size:2rem">⏳</span><div style="margin-top:1rem">جاري تحميل PDF...</div></div>';
+  G("pdf-download-btn").onclick = () => window.open(src, "_blank");
+
+  // تحميل PDF.js إذا لم يكن محملاً
+  if(!window.pdfjsLib) {
+    await new Promise((res, rej) => {
+      const s = document.createElement("script");
+      s.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+      s.onload = res; s.onerror = rej;
+      document.head.appendChild(s);
+    });
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+      "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+  }
+
+  try {
+    const loadingTask = window.pdfjsLib.getDocument(src);
+    _pdfDoc = await loadingTask.promise;
+    _pdfTotal = _pdfDoc.numPages;
+    _pdfPage  = 1;
+    _updatePdfNav();
+    await _renderPdfPage(_pdfPage);
+  } catch(e) {
+    G("pdf-canvas-wrap").innerHTML = `
+      <div style="text-align:center;padding:3rem;color:rgba(255,255,255,.6)">
+        <div style="font-size:3rem;margin-bottom:1rem">📄</div>
+        <div style="font-size:1rem;margin-bottom:1.5rem">تعذّر عرض PDF مباشرة</div>
+        <button onclick="window.open('${src}','_blank')"
+          style="background:var(--red);border:none;color:#fff;padding:.8rem 2rem;border-radius:12px;font-family:'Tajawal';font-size:.95rem;cursor:pointer;font-weight:700">
+          📥 فتح وتحميل PDF
+        </button>
+      </div>`;
+  }
 };
-window.closePdfViewer=()=>{
-  G("pdf-viewer-page").style.display="none";
-  G("pdf-frame").src="";
-  document.body.style.overflow="";
+
+async function _renderPdfPage(num) {
+  if(_pdfRendering) return;
+  _pdfRendering = true;
+  const wrap = G("pdf-canvas-wrap");
+  wrap.innerHTML = '<div style="text-align:center;padding:2rem;color:rgba(255,255,255,.4)"><span class="spin">⏳</span></div>';
+  try {
+    const page     = await _pdfDoc.getPage(num);
+    const vw       = Math.min(window.innerWidth, 900);
+    const viewport = page.getViewport({ scale: vw / page.getViewport({scale:1}).width });
+    const canvas   = document.createElement("canvas");
+    canvas.width   = viewport.width;
+    canvas.height  = viewport.height;
+    canvas.style.cssText = "max-width:100%;border-radius:8px;box-shadow:0 4px 30px rgba(0,0,0,.5);display:block;margin:0 auto;";
+    wrap.innerHTML = "";
+    wrap.appendChild(canvas);
+    await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
+  } catch(e) { wrap.innerHTML = '<div style="color:red;text-align:center;padding:2rem">❌ خطأ في عرض الصفحة</div>'; }
+  _pdfRendering = false;
+  _updatePdfNav();
+}
+
+function _updatePdfNav() {
+  const lbl = G("pdf-page-lbl");
+  if(lbl) lbl.textContent = `${_pdfPage} / ${_pdfTotal}`;
+  const prev = G("pdf-prev-btn"), next = G("pdf-next-btn");
+  if(prev) prev.disabled = _pdfPage <= 1;
+  if(next) next.disabled = _pdfPage >= _pdfTotal;
+}
+
+window.pdfPrevPage = async () => { if(_pdfPage > 1){ _pdfPage--; await _renderPdfPage(_pdfPage); } };
+window.pdfNextPage = async () => { if(_pdfPage < _pdfTotal){ _pdfPage++; await _renderPdfPage(_pdfPage); } };
+
+window.closePdfViewer = () => {
+  G("pdf-viewer-page").style.display = "none";
+  G("pdf-canvas-wrap").innerHTML = "";
+  _pdfDoc = null; _pdfPage = 1; _pdfTotal = 0;
+  document.body.style.overflow = "";
 };
 
 // ─── BOOKMARK ───
@@ -1188,7 +1270,6 @@ window.loadLibrary=async()=>{
     grid.innerHTML=html||'<div class="empty-state">📭 مكتبتك فارغة</div>';
   }catch(e){
     grid.innerHTML='<div class="empty-state">❌ حدث خطأ في تحميل المكتبة، حاول مجدداً</div>';
-    console.error("loadLibrary error:",e);
   }
 };
 
@@ -1447,7 +1528,6 @@ window.openChapters = async (workId) => {
 
   }catch(e){
     G("chapters-list").innerHTML = '<div class="empty-state">❌ خطأ في التحميل</div>';
-    console.warn("openChapters error:", e.message);
   }
 };
 
@@ -1550,6 +1630,254 @@ window.doAddChapter = async () => {
   setBL("btn-add-chapter", false);
 };
 
+// ─── إحصائيات المنصة العامة ───
+window.loadPlatformStats = async () => {
+  // نؤخر التحميل 3 ثواني حتى لا يتنافس مع loadWorks
+  await new Promise(r => setTimeout(r, 3000));
+  try {
+    // نجلب عدداً محدوداً فقط لتوفير الـ quota
+    const [worksSnap, usersSnap] = await Promise.all([
+      getDocs(query(collection(db,"works"), limit(50))),
+      getDocs(query(collection(db,"users"), limit(50)))
+    ]);
+    const works      = worksSnap.size;
+    const members    = usersSnap.size;
+    const creators   = usersSnap.docs.filter(d=>(d.data().worksCount||0)>0).length;
+    const totalViews = worksSnap.docs.reduce((s,d)=>s+(d.data().views||0),0);
+
+    const fmt = n => n >= 1000 ? (n/1000).toFixed(1)+"K" : String(n);
+    const animCount = (id, target) => {
+      const el = G(id); if(!el) return;
+      let cur = 0;
+      const step = Math.max(1, Math.ceil(target/40));
+      const t = setInterval(()=>{
+        cur = Math.min(cur+step, target);
+        el.textContent = fmt(cur);
+        if(cur >= target) clearInterval(t);
+      }, 40);
+    };
+    animCount("pstat-works",   works);
+    animCount("pstat-creators", creators);
+    animCount("pstat-views",   totalViews);
+    animCount("pstat-members", members);
+  } catch(e) {}
+};
+
+// ─── الإبلاغ عن محتوى ───
+window._reportWorkId = null;
+
+window.openReportModal = (workId) => {
+  if(!CU) return openModal("m-auth");
+  window._reportWorkId = workId;
+  document.querySelectorAll('input[name="report-r"]').forEach(r => r.checked = false);
+  const det = G("report-details"); if(det) det.value = "";
+  openModal("m-report");
+};
+
+window.submitReport = async () => {
+  const reason = document.querySelector('input[name="report-r"]:checked')?.value;
+  if(!reason) return toast("⚠️ يرجى اختيار سبب الإبلاغ","w");
+  const details = G("report-details")?.value?.trim() || "";
+  setBL("btn-submit-report", true);
+  try {
+    await addDoc(collection(db,"reports"),{
+      workId:   window._reportWorkId,
+      reporterId: CU.uid,
+      reporterName: CU.displayName || "مجهول",
+      reason, details,
+      status: "pending",
+      createdAt: serverTimestamp()
+    });
+    closeModal("m-report");
+    toast("✅ تم إرسال البلاغ — شكراً على مساعدتك!");
+  } catch(e) { toast("❌ فشل إرسال البلاغ","e"); }
+  setBL("btn-submit-report", false);
+};
+
+// ─── الأعمال المشابهة ───
+window.loadSimilarWorks = async (workId, genre, type) => {
+  const sec  = G("wm-similar-sec");
+  const grid = G("wm-similar-grid");
+  if(!sec || !grid) return;
+  try {
+    const snap = await getDocs(query(
+      collection(db,"works"),
+      where("genre","==", genre),
+      limit(10)
+    ));
+    const similar = snap.docs
+      .map(d=>({id:d.id,...d.data()}))
+      .filter(w => w.id !== workId)
+      .slice(0,4);
+
+    if(!similar.length){ sec.style.display = "none"; return; }
+    sec.style.display = "block";
+    grid.innerHTML = similar.map(w => `
+      <div onclick="closeModal('m-work');setTimeout(()=>openWork('${w.id}'),200)"
+        style="cursor:pointer;border-radius:10px;overflow:hidden;border:1px solid var(--br);transition:border .2s"
+        onmouseover="this.style.borderColor='var(--red)'" onmouseout="this.style.borderColor='var(--br)'">
+        ${w.coverUrl
+          ? `<img src="${w.coverUrl}" style="width:100%;aspect-ratio:3/4;object-fit:cover;display:block" loading="lazy">`
+          : `<div style="width:100%;aspect-ratio:3/4;background:var(--s2);display:flex;align-items:center;justify-content:center;font-size:2rem">📚</div>`}
+        <div style="padding:.4rem .5rem;font-size:.72rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${sanitize(w.title||"")}</div>
+      </div>`).join("");
+  } catch(e) { sec.style.display = "none"; }
+};
+
+// ─── نظام الدردشة المباشرة (DIRECT MESSAGES) ───
+let _chatUnsub = null;
+let _activeChatUid = null;
+let _activeChatName = "";
+let _msgUnsub = null;
+
+// فتح قائمة المحادثات
+window.openChat = async () => {
+  if(!CU) return openModal("m-auth");
+  openModal("m-chat-list");
+  G("chat-list-body").innerHTML = '<div class="empty-state"><span class="spin">⏳</span></div>';
+  await loadChatList();
+};
+
+// جلب قائمة المحادثات
+async function loadChatList() {
+  try {
+    const snap = await getDocs(query(
+      collection(db,"chats"),
+      where("members","array-contains", CU.uid),
+      orderBy("lastAt","desc"),
+      limit(20)
+    ));
+    if(snap.empty){
+      G("chat-list-body").innerHTML = '<div class="empty-state">💬 لا توجد محادثات بعد<br><small style="color:var(--mu);font-size:.8rem">ابدأ محادثة من صفحة أي مبدع</small></div>';
+      return;
+    }
+    const items = await Promise.all(snap.docs.map(async d => {
+      const data = d.data();
+      const otherUid = data.members.find(m => m !== CU.uid);
+      const otherSnap = await getDoc(doc(db,"users",otherUid));
+      const other = otherSnap.exists() ? otherSnap.data() : {};
+      const unread = (data.unread||{})[CU.uid] || 0;
+      return { id:d.id, other, otherUid, lastMsg:data.lastMsg||"", lastAt:data.lastAt, unread };
+    }));
+    G("chat-list-body").innerHTML = items.map(item => `
+      <div class="chat-list-item ${item.unread?'chat-unread':''}" onclick="openChatRoom('${item.otherUid}','${sanitize(item.other.name||item.otherUid)}','${item.id}')">
+        <div class="chat-av" style="${item.other.avatarUrl?`background-image:url(${item.other.avatarUrl});background-size:cover;background-position:center`:'background:var(--red)'}">
+          ${item.other.avatarUrl?"":(item.other.name||"?").substring(0,1).toUpperCase()}
+        </div>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:800;font-size:.9rem">${sanitize(item.other.name||"مستخدم")}</div>
+          <div style="font-size:.78rem;color:var(--mu);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${sanitize(item.lastMsg||"")}</div>
+        </div>
+        ${item.unread ? `<div style="background:var(--red);color:#fff;font-size:.7rem;font-weight:800;padding:.2rem .5rem;border-radius:10px;flex-shrink:0">${item.unread}</div>` : ""}
+      </div>`).join("");
+  } catch(e) {
+    G("chat-list-body").innerHTML = '<div class="empty-state">❌ خطأ في التحميل</div>';
+  }
+}
+
+// فتح غرفة دردشة
+window.openChatRoom = async (otherUid, otherName, chatId) => {
+  _activeChatUid  = otherUid;
+  _activeChatName = otherName;
+  closeModal("m-chat-list");
+  G("chat-room-title").textContent = otherName;
+  G("chat-messages").innerHTML = '<div class="empty-state"><span class="spin">⏳</span></div>';
+  G("chat-msg-inp").value = "";
+  openModal("m-chat-room");
+
+  // إنشاء أو جلب chatId
+  if(!chatId){
+    const ids = [CU.uid, otherUid].sort();
+    chatId = ids[0]+"_"+ids[1];
+  }
+  window._activeChatId = chatId;
+
+  // تصفير عداد الرسائل غير المقروءة
+  setDoc(doc(db,"chats",chatId),{[`unread.${CU.uid}`]:0},{merge:true}).catch(()=>{});
+
+  // مستمع الرسائل Real-time
+  if(_msgUnsub) _msgUnsub();
+  _msgUnsub = onSnapshot(
+    query(collection(db,"chats",chatId,"messages"), orderBy("at","asc"), limit(50)),
+    snap => {
+      const msgs = snap.docs.map(d=>({id:d.id,...d.data()}));
+      const box = G("chat-messages");
+      if(!box) return;
+      if(!msgs.length){
+        box.innerHTML = '<div class="empty-state" style="font-size:.85rem">ابدأ المحادثة! 👋</div>';
+        return;
+      }
+      box.innerHTML = msgs.map(m => {
+        const mine = m.uid === CU.uid;
+        const time = m.at?.toDate ? _timeAgo(m.at.toDate()) : "";
+        return `<div class="msg-wrap ${mine?'msg-mine':'msg-theirs'}">
+          <div class="msg-bubble">${sanitize(m.text||"")}</div>
+          <div class="msg-time">${time}</div>
+        </div>`;
+      }).join("");
+      box.scrollTop = box.scrollHeight;
+    }
+  );
+};
+
+// بدء محادثة جديدة من صفحة مبدع
+window.startChatWith = async (otherUid, otherName) => {
+  if(!CU) return openModal("m-auth");
+  if(otherUid === CU.uid) return toast("⚠️ لا يمكنك مراسلة نفسك","w");
+  const ids = [CU.uid, otherUid].sort();
+  const chatId = ids[0]+"_"+ids[1];
+  await setDoc(doc(db,"chats",chatId),{
+    members:[CU.uid,otherUid],
+    lastMsg:"", lastAt:serverTimestamp(),
+    [`unread.${otherUid}`]:0, [`unread.${CU.uid}`]:0
+  },{merge:true});
+  openChatRoom(otherUid, otherName, chatId);
+};
+
+// إرسال رسالة
+window.sendChatMsg = async () => {
+  const text = G("chat-msg-inp").value.trim();
+  if(!text || !window._activeChatId || !CU) return;
+  if(text.length > 500) return toast("⚠️ الرسالة طويلة جداً (500 حرف كحد أقصى)","w");
+  G("chat-msg-inp").value = "";
+  const chatId = window._activeChatId;
+  try {
+    await addDoc(collection(db,"chats",chatId,"messages"),{
+      uid: CU.uid, name: CU.displayName||"مستخدم",
+      text: sanitize(text), at: serverTimestamp()
+    });
+    await setDoc(doc(db,"chats",chatId),{
+      lastMsg: text.substring(0,60),
+      lastAt: serverTimestamp(),
+      [`unread.${_activeChatUid}`]: increment(1)
+    },{merge:true});
+    // إشعار للطرف الآخر
+    addDoc(collection(db,"notifications"),{
+      toUid:_activeChatUid, fromUid:CU.uid,
+      fromName:CU.displayName||"مستخدم",
+      msg:"أرسل إليك رسالة جديدة 💬",
+      read:false, createdAt:serverTimestamp()
+    }).catch(()=>{});
+  } catch(e){ toast("❌ فشل الإرسال","e"); }
+};
+
+// مستمع الرسائل الجديدة لتحديث badge
+window.startChatBadgeListener = () => {
+  if(!CU) return;
+  onSnapshot(
+    query(collection(db,"chats"), where("members","array-contains",CU.uid)),
+    snap => {
+      let total = 0;
+      snap.docs.forEach(d => { total += (d.data().unread||{})[CU.uid] || 0; });
+      const badge = G("chat-badge");
+      if(badge){
+        badge.textContent = total > 9 ? "9+" : total;
+        badge.style.display = total > 0 ? "flex" : "none";
+      }
+    }
+  );
+};
+
 // ─── BROWSER PUSH NOTIFICATIONS ───
 window._pushEnabled = false;
 window._lastNotifIds = new Set(); // لتتبع الإشعارات الجديدة فقط
@@ -1609,7 +1937,7 @@ function _sendBrowserNotif(title, body, icon){
     });
     n.onclick = () => { window.focus(); n.close(); };
     setTimeout(() => n.close(), 6000);
-  } catch(e){ console.warn("push notif error:", e); }
+  } catch(e){ }
 }
 
 // ─── NOTIFICATIONS — Real-time بـ onSnapshot ───
@@ -1685,7 +2013,6 @@ window.startNotifListener = () => {
     }).join("");
 
   }, (err) => {
-    console.error("notif listener error:", err.message);
   });
 };
 
@@ -1784,7 +2111,7 @@ async function updateUserPoints(uid){
     const pts = calcPoints(d);
     const badge = getBadge(pts);
     await setDoc(doc(db,"users",uid),{ points: pts, badgeId: badge.id },{ merge:true });
-  }catch(e){ console.warn("updateUserPoints error:", e.message); }
+  }catch(e){ }
 }
 
 // ─── PUBLIC PROFILE ───
@@ -1843,6 +2170,17 @@ window.openPublicProfile = async (uid) => {
     const ppViews = G("pp-stat-views"); if(ppViews) ppViews.textContent = d.totalViews||0;
     const ppLikes = G("pp-stat-likes"); if(ppLikes) ppLikes.textContent = d.totalLikes||0;
 
+    // ── زر المراسلة ──
+    const chatBtn = G("pp-chat-btn");
+    if(chatBtn){
+      if(CU && CU.uid !== uid){
+        chatBtn.style.display = "inline-flex";
+        chatBtn.onclick = () => startChatWith(uid, d.name||"مستخدم");
+      } else {
+        chatBtn.style.display = "none";
+      }
+    }
+
     // ── زر المتابعة — جلب حالة المتابعة من Firestore مباشرة ──
     const followBtn = G("pp-follow-btn");
     if(CU && CU.uid !== uid){
@@ -1897,7 +2235,6 @@ window.openPublicProfile = async (uid) => {
     history.pushState({uid},'','#/author/'+uid);
 
   } catch(e) {
-    console.error("openPublicProfile error:", e);
     toast("❌ خطأ في تحميل الملف الشخصي","e");
   }
 };
@@ -1972,7 +2309,6 @@ window.loadProfile=async()=>{
     allWorks = ws.docs.map(d=>({id:d.id,...d.data()}))
       .sort((a,b)=>((b.createdAt?.seconds||0)-(a.createdAt?.seconds||0)));
   } catch(e){
-    console.warn("loadProfile works error:", e.message);
   }
   G("p-works-count").textContent = allWorks.length;
   G("p-works-grid").innerHTML = allWorks.length === 0
@@ -2100,11 +2436,17 @@ window.toggleAdvFilters = () => {
 };
 
 window.setAdvChip = (el, group) => {
-  // إزالة active من كل chips نفس المجموعة
   const containerId = { type:"adv-type-chips", genre:"adv-genre-chips", status:"adv-status-chips", sort:"adv-sort-chips" }[group];
   G(containerId).querySelectorAll(".achip").forEach(c => c.classList.remove("active"));
   el.classList.add("active");
   window._advFilters[group] = el.dataset.val;
+  // مزامنة مع تبويبات النوع
+  if(group === "type"){
+    window._filterType = el.dataset.val;
+    document.querySelectorAll(".ttab").forEach(b =>
+      b.classList.toggle("active", b.dataset.type === el.dataset.val)
+    );
+  }
   applyAdvSearch();
 };
 
@@ -2117,6 +2459,10 @@ window.resetAdvSearch = () => {
     container.querySelectorAll(".achip").forEach((c,i) => c.classList.toggle("active", i===0));
   });
   const inp = G("adv-search-inp"); if(inp) inp.value = "";
+  window._filterType = "all";
+  document.querySelectorAll(".ttab").forEach(b =>
+    b.classList.toggle("active", b.dataset.type === "all")
+  );
   applyAdvSearch();
 };
 
@@ -2196,7 +2542,6 @@ window.loadWorksAdvanced = async (searchQ, filters) => {
 
   } catch(e) {
     grid.innerHTML = '<div class="empty-state">❌ خطأ في البحث</div>';
-    console.warn("loadWorksAdvanced error:", e.message);
   }
 };
 
@@ -2211,7 +2556,7 @@ window.addEventListener("load",()=>{
   if(localStorage.getItem("mv_push")==="1" && Notification.permission==="granted"){
     window._pushEnabled = true;
   }
-  loadWorks(); loadHeroSlider(); loadTrending();
+  loadWorks(); loadHeroSlider(); loadTrending(); loadPlatformStats();
 });
 
 // ─── تخصيص الواجهة ───
@@ -2325,6 +2670,7 @@ function updateNavUI(on){
   // عناصر الـ navbar الجديدة
   const pubBtn=G("nav-pub-btn"); if(pubBtn) pubBtn.style.display=on?"inline-flex":"none";
   const notifWrap=G("nav-notif-wrap"); if(notifWrap) notifWrap.style.display=on?"flex":"none";
+  const chatWrap=G("nav-chat-wrap"); if(chatWrap) chatWrap.style.display=on?"flex":"none";
 
   // Sidebar: أقسام تسجيل الدخول
   const sbGuest=G("sb-guest-actions"); if(sbGuest) sbGuest.style.display=on?"none":"block";
@@ -2419,6 +2765,44 @@ body.light-mode .genre-card{background:#fff;border-color:rgba(0,0,0,.08);}
 .auth-divider::before,.auth-divider::after{content:"";flex:1;height:1px;background:var(--br);}
 .auth-divider span{color:var(--mu);font-size:.78rem;white-space:nowrap;}
 body.light-mode .google-btn{background:#fff;border-color:rgba(0,0,0,.15);}
+
+/* ─── PLATFORM STATS ─── */
+.pstat-item{flex:1;min-width:120px;text-align:center;padding:1rem .5rem;border-left:1px solid var(--br);}
+.pstat-item:last-child{border-left:none;}
+.pstat-num{font-family:'Bebas Neue';font-size:2.2rem;color:var(--red);letter-spacing:1px;line-height:1;}
+.pstat-lbl{font-size:.78rem;color:var(--mu);margin-top:.3rem;}
+body.light-mode .pstat-item{border-color:rgba(0,0,0,.08);}
+
+/* ─── REPORT MODAL ─── */
+.report-opt{display:flex;align-items:center;gap:.7rem;padding:.6rem .8rem;border:1px solid var(--br);border-radius:10px;cursor:pointer;font-size:.88rem;transition:all .2s;}
+.report-opt:hover{border-color:var(--red);background:rgba(232,25,44,.05);}
+.report-opt input{accent-color:var(--red);width:16px;height:16px;flex-shrink:0;}
+body.light-mode .report-opt{border-color:rgba(0,0,0,.1);}
+
+/* ─── CHAT SYSTEM ─── */
+.chat-list-item{display:flex;align-items:center;gap:.9rem;padding:.9rem 1rem;border-bottom:1px solid var(--br);cursor:pointer;transition:background .18s;border-radius:10px;}
+.chat-list-item:hover{background:rgba(255,255,255,.05);}
+.chat-list-item.chat-unread{background:rgba(59,130,246,.07);border-right:3px solid #60a5fa;}
+body.light-mode .chat-list-item:hover{background:rgba(0,0,0,.04);}
+.chat-av{width:44px;height:44px;border-radius:50%;background:var(--red);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.95rem;flex-shrink:0;background-size:cover;background-position:center;}
+.msg-wrap{display:flex;flex-direction:column;max-width:80%;}
+.msg-mine{align-self:flex-end;align-items:flex-end;}
+.msg-theirs{align-self:flex-start;align-items:flex-start;}
+.msg-bubble{padding:.6rem .9rem;border-radius:16px;font-size:.88rem;line-height:1.5;word-break:break-word;}
+.msg-mine .msg-bubble{background:var(--red);color:#fff;border-bottom-right-radius:4px;}
+.msg-theirs .msg-bubble{background:rgba(255,255,255,.08);color:var(--w);border-bottom-left-radius:4px;}
+body.light-mode .msg-theirs .msg-bubble{background:rgba(0,0,0,.07);color:#1a1a2e;}
+.msg-time{font-size:.65rem;color:var(--mu);margin-top:.2rem;padding:0 .3rem;}
+
+/* ─── TYPE TABS ─── */
+.type-tabs{display:flex;gap:.5rem;overflow-x:auto;padding:.2rem 0 .8rem;scrollbar-width:none;-ms-overflow-style:none;margin-bottom:.5rem;}
+.type-tabs::-webkit-scrollbar{display:none;}
+.ttab{flex-shrink:0;padding:.5rem 1.1rem;border-radius:30px;border:1.5px solid var(--br);background:transparent;color:var(--mu);font-family:'Tajawal';font-size:.85rem;font-weight:600;cursor:pointer;transition:all .2s;white-space:nowrap;}
+.ttab:hover{border-color:var(--red);color:var(--red);}
+.ttab.active{background:var(--red);border-color:var(--red);color:#fff;box-shadow:0 4px 14px var(--rg);}
+body.light-mode .ttab{color:rgba(0,0,0,.5);border-color:rgba(0,0,0,.15);}
+body.light-mode .ttab.active{color:#fff;}
+body.light-mode .ttab:hover{color:var(--red);border-color:var(--red);}
 
 /* ─── CHAPTERS SYSTEM ─── */
 .chapter-item{display:flex;align-items:center;gap:.9rem;padding:.9rem 1rem;border-bottom:1px solid var(--br);cursor:pointer;transition:background .18s;border-radius:10px;}
@@ -2650,7 +3034,13 @@ section{padding:4.5rem 2rem;}
 .fbtn.active,.fbtn:hover{background:var(--red);border-color:var(--red);color:#fff;}
 
 /* WORKS GRID */
-.works-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(162px,1fr));gap:1.2rem;}
+.works-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:1rem;}
+@media(max-width:480px){
+  .works-grid{grid-template-columns:repeat(2,1fr);gap:.7rem;}
+}
+@media(max-width:320px){
+  .works-grid{grid-template-columns:repeat(2,1fr);gap:.5rem;}
+}
 .work-card{cursor:pointer;transition:transform .3s;position:relative;}
 .work-card:hover{transform:translateY(-7px);}
 .work-thumb{aspect-ratio:2/3;border-radius:10px;overflow:hidden;position:relative;margin-bottom:.7rem;background:var(--s1);}
@@ -2698,37 +3088,37 @@ section{padding:4.5rem 2rem;}
 .cover-edit-btn:hover{background:var(--red);border-color:var(--red);}
 .p-head{display:flex;align-items:flex-end;gap:1.5rem;margin-top:-62px;padding-bottom:1.5rem;border-bottom:1px solid var(--br);flex-wrap:wrap;}
 .p-av-wrap{position:relative;flex-shrink:0;cursor:pointer;}
-/* ── إطارات الرتب ── */
+/* ── إطارات الرتب — الإطار يتحرك، الصورة ثابتة بلونها الطبيعي ── */
 .p-av-ring{width:128px;height:128px;border-radius:50%;padding:3px;position:relative;}
 
-/* 🌱 مبدع جديد — بسيط أخضر هادئ */
+/* 🌱 مبدع جديد */
 .p-av-ring.ring-new{
   background:conic-gradient(#4CAF50,#81C784,#4CAF50,#2E7D32,#4CAF50);
   box-shadow:0 0 15px rgba(76,175,80,.4);
   animation:ring-rotate 10s linear infinite;
 }
-/* ⭐ واعد — فضي متلألئ */
+/* ⭐ واعد */
 .p-av-ring.ring-promising{
   background:conic-gradient(#C0C0C0,#E8E8E8,#A8A8A8,#E8E8E8,#C0C0C0,#888,#C0C0C0);
   box-shadow:0 0 18px rgba(192,192,192,.5);
   animation:ring-rotate 8s linear infinite;
 }
-/* 🔥 نشط — برتقالي ناري */
+/* 🔥 نشط */
 .p-av-ring.ring-active{
   background:conic-gradient(#FF6B35,#FF8C42,#FF6B35,#E8192c,#FF4500,#FF6B35);
   box-shadow:0 0 22px rgba(255,107,53,.6);
   animation:ring-fire 4s ease-in-out infinite;
 }
-/* 💎 متميز — سماوي ماسي */
+/* 💎 متميز */
 .p-av-ring.ring-elite{
   background:conic-gradient(#00D4FF,#7B2FFF,#00D4FF,#0099CC,#00E5FF,#7B2FFF,#00D4FF);
   box-shadow:0 0 28px rgba(0,212,255,.7),0 0 50px rgba(123,47,255,.3);
   animation:ring-rotate 5s linear infinite;
 }
-/* 👑 أسطورة — ذهبي ملكي مع توهج */
+/* 👑 أسطورة */
 .p-av-ring.ring-legend{
   background:conic-gradient(#FFD700,#FFA500,#FFD700,#FF8C00,#FFD700,#FFEC6E,#FFD700);
-  box-shadow:0 0 30px rgba(255,215,0,.8),0 0 60px rgba(255,165,0,.4),inset 0 0 20px rgba(255,215,0,.1);
+  box-shadow:0 0 30px rgba(255,215,0,.8),0 0 60px rgba(255,165,0,.4);
   animation:ring-legend 3s ease-in-out infinite;
   padding:4px;
 }
@@ -2745,6 +3135,21 @@ section{padding:4.5rem 2rem;}
   50%{box-shadow:0 0 50px rgba(255,215,0,1),0 0 80px rgba(255,165,0,.7),0 0 100px rgba(255,200,0,.3);}
 }
 .p-av-inner{width:100%;height:100%;border-radius:50%;background:var(--s1);border:3px solid var(--ink);overflow:hidden;display:flex;align-items:center;justify-content:center;position:relative;}
+/* الصورة الشخصية تعكس دوران الإطار لتبقى بلونها الطبيعي */
+.p-av-ring.ring-new .p-av-inner,
+.p-av-ring.ring-promising .p-av-inner,
+.p-av-ring.ring-elite .p-av-inner{
+  animation:ring-counter 10s linear infinite;
+}
+.p-av-ring.ring-active .p-av-inner{
+  animation:ring-counter 10s linear infinite;
+}
+.p-av-ring.ring-legend .p-av-inner{
+  animation:ring-counter 10s linear infinite;
+}
+@keyframes ring-counter{
+  from{transform:rotate(0deg)} to{transform:rotate(-360deg)}
+}
 #p-av-ini{font-family:'Bebas Neue';font-size:2.5rem;color:var(--red);letter-spacing:2px;}
 #p-av-img{width:100%;height:100%;object-fit:cover;border-radius:50%;display:none;}
 .av-hover{position:absolute;inset:0;border-radius:50%;background:rgba(0,0,0,.65);display:flex;flex-direction:column;align-items:center;justify-content:center;opacity:0;transition:opacity .3s;gap:4px;}
@@ -2920,15 +3325,25 @@ footer a:hover{text-decoration:underline;}
 <div class="toast" id="toast"></div>
 
 <!-- PDF VIEWER PAGE -->
-<div id="pdf-viewer-page" style="display:none;position:fixed;inset:0;background:#1a1a1a;z-index:9998;flex-direction:column;">
-  <div style="height:56px;background:rgba(8,8,15,.97);border-bottom:1px solid var(--br);display:flex;align-items:center;justify-content:space-between;padding:0 1.5rem;flex-shrink:0;">
-    <h3 id="pdf-viewer-title" style="font-size:1rem;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:60%"></h3>
-    <div style="display:flex;gap:.7rem;align-items:center;">
-      <button id="pdf-download-btn" style="background:rgba(255,255,255,.08);border:1px solid var(--br);color:var(--w);border-radius:8px;padding:.45rem 1rem;font-family:'Tajawal';font-size:.83rem;cursor:pointer;">📥 تحميل</button>
-      <button onclick="closePdfViewer()" style="background:var(--red);border:none;color:#fff;width:36px;height:36px;border-radius:8px;cursor:pointer;font-size:1.1rem;">✕</button>
-    </div>
+<div id="pdf-viewer-page" style="display:none;position:fixed;inset:0;background:#141414;z-index:9998;flex-direction:column;">
+  <!-- شريط العنوان -->
+  <div style="height:54px;background:rgba(8,8,15,.98);border-bottom:1px solid var(--br);display:flex;align-items:center;justify-content:space-between;padding:0 1rem;flex-shrink:0;gap:.5rem;">
+    <button onclick="closePdfViewer()" style="background:rgba(255,255,255,.08);border:1px solid var(--br);color:var(--w);width:36px;height:36px;border-radius:8px;cursor:pointer;font-size:1.1rem;flex-shrink:0;">✕</button>
+    <h3 id="pdf-viewer-title" style="font-size:.9rem;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;text-align:center;"></h3>
+    <button id="pdf-download-btn" style="background:rgba(255,255,255,.08);border:1px solid var(--br);color:var(--w);border-radius:8px;padding:.45rem .8rem;font-family:'Tajawal';font-size:.8rem;cursor:pointer;flex-shrink:0;">📥 تحميل</button>
   </div>
-  <iframe id="pdf-frame" style="flex:1;border:none;width:100%;background:#fff;" src=""></iframe>
+  <!-- منطقة العرض -->
+  <div id="pdf-canvas-wrap" style="flex:1;overflow-y:auto;padding:1rem;"></div>
+  <!-- شريط التنقل بين الصفحات -->
+  <div style="height:52px;background:rgba(8,8,15,.97);border-top:1px solid var(--br);display:flex;align-items:center;justify-content:center;gap:1rem;flex-shrink:0;">
+    <button id="pdf-prev-btn" onclick="pdfPrevPage()"
+      style="background:rgba(255,255,255,.08);border:1px solid var(--br);color:var(--w);width:40px;height:38px;border-radius:8px;cursor:pointer;font-size:1.1rem;transition:all .2s;"
+      onmouseover="this.style.background='var(--red)'" onmouseout="this.style.background='rgba(255,255,255,.08)'">‹</button>
+    <span id="pdf-page-lbl" style="font-size:.9rem;font-weight:700;color:rgba(255,255,255,.7);min-width:70px;text-align:center;">1 / 1</span>
+    <button id="pdf-next-btn" onclick="pdfNextPage()"
+      style="background:rgba(255,255,255,.08);border:1px solid var(--br);color:var(--w);width:40px;height:38px;border-radius:8px;cursor:pointer;font-size:1.1rem;transition:all .2s;"
+      onmouseover="this.style.background='var(--red)'" onmouseout="this.style.background='rgba(255,255,255,.08)'">›</button>
+  </div>
 </div>
 
 <!-- READER PAGE -->
@@ -3007,6 +3422,58 @@ footer a:hover{text-decoration:underline;}
     <button onclick="closeModal('m-delete-account')" style="background:transparent;border:1px solid var(--br);color:var(--mu);width:100%;padding:.75rem;border-radius:10px;font-family:'Tajawal';font-size:.9rem;cursor:pointer">
       إلغاء — أريد البقاء
     </button>
+  </div>
+</div>
+
+<!-- REPORT MODAL -->
+<div class="mo" id="m-report">
+  <div class="md" style="max-width:420px">
+    <div class="mh"><h2>🚩 الإبلاغ عن محتوى</h2><button class="mclose" onclick="closeModal('m-report')">✕</button></div>
+    <p style="color:var(--mu);font-size:.88rem;margin-bottom:1.2rem">ساعدنا في الحفاظ على بيئة آمنة — اختر سبب الإبلاغ:</p>
+    <div id="report-reasons" style="display:flex;flex-direction:column;gap:.5rem;margin-bottom:1.2rem">
+      <label class="report-opt"><input type="radio" name="report-r" value="محتوى مسيء أو مخالف"> محتوى مسيء أو مخالف</label>
+      <label class="report-opt"><input type="radio" name="report-r" value="انتهاك حقوق الملكية"> انتهاك حقوق الملكية</label>
+      <label class="report-opt"><input type="radio" name="report-r" value="محتوى للبالغين بدون تحذير"> محتوى للبالغين بدون تحذير</label>
+      <label class="report-opt"><input type="radio" name="report-r" value="معلومات مضللة أو كاذبة"> معلومات مضللة أو كاذبة</label>
+      <label class="report-opt"><input type="radio" name="report-r" value="سبب آخر"> سبب آخر</label>
+    </div>
+    <div class="fg">
+      <label>تفاصيل إضافية (اختياري)</label>
+      <textarea class="mi" id="report-details" rows="3" placeholder="أضف أي تفاصيل تساعدنا..." style="resize:none"></textarea>
+    </div>
+    <button class="msub" id="btn-submit-report" onclick="submitReport()">📤 إرسال البلاغ</button>
+  </div>
+</div>
+
+<!-- CHAT LIST MODAL -->
+<div class="mo" id="m-chat-list">
+  <div class="md" style="max-width:480px;max-height:85vh;display:flex;flex-direction:column">
+    <div class="mh">
+      <h2>💬 الرسائل</h2>
+      <button class="mclose" onclick="closeModal('m-chat-list')">✕</button>
+    </div>
+    <div id="chat-list-body" style="overflow-y:auto;flex:1"></div>
+  </div>
+</div>
+
+<!-- CHAT ROOM MODAL -->
+<div class="mo" id="m-chat-room">
+  <div class="md" style="max-width:500px;height:88vh;max-height:88vh;display:flex;flex-direction:column;padding:0;overflow:hidden">
+    <!-- رأس المحادثة -->
+    <div style="padding:.9rem 1rem;border-bottom:1px solid var(--br);display:flex;align-items:center;gap:.8rem;flex-shrink:0">
+      <button onclick="closeModal('m-chat-room');openChat()" style="background:transparent;border:none;color:var(--mu);font-size:1.3rem;cursor:pointer;padding:.2rem">‹</button>
+      <div style="font-weight:800;font-size:.95rem;flex:1" id="chat-room-title"></div>
+      <button onclick="closeModal('m-chat-room')" style="background:transparent;border:none;color:var(--mu);font-size:1.1rem;cursor:pointer">✕</button>
+    </div>
+    <!-- الرسائل -->
+    <div id="chat-messages" style="flex:1;overflow-y:auto;padding:1rem;display:flex;flex-direction:column;gap:.6rem"></div>
+    <!-- حقل الإدخال -->
+    <div style="padding:.7rem 1rem;border-top:1px solid var(--br);display:flex;gap:.6rem;flex-shrink:0;align-items:center">
+      <input id="chat-msg-inp" class="mi" type="text" placeholder="اكتب رسالة..." maxlength="500"
+        style="flex:1;margin:0;padding:.6rem .9rem"
+        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChatMsg()}">
+      <button onclick="sendChatMsg()" style="background:var(--red);border:none;color:#fff;width:40px;height:40px;border-radius:10px;cursor:pointer;font-size:1.1rem;flex-shrink:0;transition:opacity .2s" onmouseover="this.style.opacity='.8'" onmouseout="this.style.opacity='1'">➤</button>
+    </div>
   </div>
 </div>
 
@@ -3139,7 +3606,7 @@ footer a:hover{text-decoration:underline;}
       <div>
         <div class="fg"><label>اسم العمل *</label><input class="fc" id="w-title" type="text" placeholder="مثال: ظلال القدر"></div>
         <div class="fg"><label>التصنيف *</label>
-          <select class="fc" id="w-type"><option value="">اختر التصنيف</option><option>مانجا</option><option>ويبتون</option><option>رواية مصورة</option><option>كتاب</option><option>مجلة</option></select>
+          <select class="fc" id="w-type"><option value="">اختر التصنيف</option><option>مانجا</option><option>ويبتون</option><option>رواية مصورة</option><option>رواية</option><option>كتاب</option><option>مجلة</option></select>
         </div>
         <div class="fg"><label>النوع *</label>
           <select class="fc" id="w-genre"><option value="">اختر النوع</option>
@@ -3223,6 +3690,11 @@ footer a:hover{text-decoration:underline;}
         </div>
         <div class="wm-actions" id="wm-extras" style="margin-top:.5rem"></div>
 
+        <!-- 🚩 زر الإبلاغ -->
+        <div id="wm-report-wrap" style="margin-top:.5rem;display:none">
+          <button onclick="openReportModal(window._wid)" style="background:transparent;border:none;color:rgba(255,255,255,.3);font-family:'Tajawal';font-size:.75rem;cursor:pointer;padding:.2rem 0;transition:color .2s" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='rgba(255,255,255,.3)'">🚩 الإبلاغ عن هذا العمل</button>
+        </div>
+
         <!-- 📤 أزرار المشاركة -->
         <div class="share-section">
           <div class="share-label">📤 شارك هذا العمل</div>
@@ -3246,6 +3718,13 @@ footer a:hover{text-decoration:underline;}
         </div>
       </div>
     </div>
+    <!-- 🎯 أعمال مشابهة -->
+    <div id="wm-similar-sec" style="display:none">
+      <hr style="border:none;border-top:1px solid var(--br);margin:1.2rem 0">
+      <div style="font-weight:800;font-size:.95rem;margin-bottom:.9rem">🎯 أعمال مشابهة</div>
+      <div id="wm-similar-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:.8rem"></div>
+    </div>
+
     <hr style="border:none;border-top:1px solid var(--br);margin:1.2rem 0">
     <div class="wm-comments-section">
       <h4>💬 التعليقات</h4>
@@ -3397,6 +3876,10 @@ footer a:hover{text-decoration:underline;}
     <button class="nbtn nbtn-pub" id="nav-pub-btn" onclick="openModal('m-publish')" style="display:none">📤 نشر</button>
     <button class="theme-btn" id="theme-toggle-btn" onclick="window.toggleTheme()" title="تبديل الوضع">🌙</button>
     <button class="theme-btn" onclick="openModal('m-customize')" title="تخصيص الواجهة" style="font-size:1rem">🎨</button>
+    <div class="notif-wrap" id="nav-chat-wrap" style="display:none;position:relative;cursor:pointer" onclick="openChat()">
+      <div class="notif-bell" title="الرسائل" style="font-size:1.15rem">💬</div>
+      <div class="notif-badge" id="chat-badge" style="display:none">0</div>
+    </div>
     <div class="notif-wrap" id="nav-notif-wrap" style="display:none" onclick="window._toggleNotif(event)">
       <div class="notif-bell" title="الإشعارات">🔔</div>
       <div class="notif-badge" id="notif-badge">0</div>
@@ -3430,6 +3913,30 @@ footer a:hover{text-decoration:underline;}
     </p>
   </div>
 
+  <!-- PLATFORM STATS -->
+  <section id="stats-sec" style="padding:1.8rem 0;border-bottom:1px solid var(--br)">
+    <div class="cont">
+      <div id="platform-stats" style="display:flex;justify-content:center;gap:0;flex-wrap:wrap">
+        <div class="pstat-item">
+          <div class="pstat-num" id="pstat-works">—</div>
+          <div class="pstat-lbl">📚 عمل منشور</div>
+        </div>
+        <div class="pstat-item">
+          <div class="pstat-num" id="pstat-creators">—</div>
+          <div class="pstat-lbl">✍️ مبدع</div>
+        </div>
+        <div class="pstat-item">
+          <div class="pstat-num" id="pstat-views">—</div>
+          <div class="pstat-lbl">👁 مشاهدة</div>
+        </div>
+        <div class="pstat-item">
+          <div class="pstat-num" id="pstat-members">—</div>
+          <div class="pstat-lbl">👥 عضو</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- TRENDING -->
   <section id="trending-sec" style="background:linear-gradient(180deg,#08080f 0%,#0f0a14 100%);padding:2.5rem 0 0">
     <div class="cont">
@@ -3442,7 +3949,7 @@ footer a:hover{text-decoration:underline;}
         </div>
         <button onclick="document.getElementById('browse-sec').scrollIntoView({behavior:'smooth'})" style="background:transparent;border:1.5px solid var(--br);color:var(--mu);padding:.45rem 1rem;border-radius:8px;font-family:'Tajawal';font-size:.83rem;cursor:pointer;transition:all .2s" onmouseover="this.style.borderColor='var(--red)';this.style.color='var(--red)'" onmouseout="this.style.borderColor='var(--br)';this.style.color='var(--mu)'">عرض الكل ←</button>
       </div>
-      <div id="trending-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(162px,1fr));gap:1.2rem">
+      <div id="trending-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:.8rem">
         <div class="empty-state"><span class="spin">⏳</span></div>
       </div>
 
@@ -3521,6 +4028,7 @@ footer a:hover{text-decoration:underline;}
                 <button class="achip" data-val="ويبتون" onclick="setAdvChip(this,'type')">ويبتون</button>
                 <button class="achip" data-val="رواية مصورة" onclick="setAdvChip(this,'type')">رواية مصورة</button>
                 <button class="achip" data-val="كتاب" onclick="setAdvChip(this,'type')">كتاب</button>
+                <button class="achip" data-val="رواية" onclick="setAdvChip(this,'type')">رواية</button>
                 <button class="achip" data-val="مجلة" onclick="setAdvChip(this,'type')">مجلة</button>
               </div>
             </div>
@@ -3577,6 +4085,18 @@ footer a:hover{text-decoration:underline;}
       <div class="filter-bar" style="display:none">
         <button class="fbtn active" onclick="filterWorks(this,'all')">الكل</button>
       </div>
+
+      <!-- تبويبات النوع -->
+      <div class="type-tabs" id="type-tabs" dir="rtl">
+        <button class="ttab active" data-type="مانجا" onclick="setTypeTab(this,'مانجا')">⚔️ مانجا</button>
+        <button class="ttab" data-type="ويبتون" onclick="setTypeTab(this,'ويبتون')">📱 ويبتون</button>
+        <button class="ttab" data-type="رواية مصورة" onclick="setTypeTab(this,'رواية مصورة')">🎨 رواية مصورة</button>
+        <button class="ttab" data-type="رواية" onclick="setTypeTab(this,'رواية')">📖 رواية</button>
+        <button class="ttab" data-type="كتاب" onclick="setTypeTab(this,'كتاب')">📕 كتاب</button>
+        <button class="ttab" data-type="مجلة" onclick="setTypeTab(this,'مجلة')">📰 مجلة</button>
+        <button class="ttab" data-type="all" onclick="setTypeTab(this,'all')">📚 الكل</button>
+      </div>
+
       <div class="works-grid" id="works-grid">
         <div class="empty-state"><span class="spin">⏳</span> جاري التحميل...</div>
       </div>
@@ -3741,7 +4261,10 @@ footer a:hover{text-decoration:underline;}
           <div style="font-size:.83rem;color:var(--mu);margin-bottom:.4rem" id="pp-username"></div>
           <div id="pp-badge-display"></div>
         </div>
-        <button class="wa-btn wa-follow" id="pp-follow-btn" style="display:none">➕ تابع المبدع</button>
+        <div style="display:flex;gap:.6rem;flex-wrap:wrap">
+          <button class="wa-btn wa-follow" id="pp-follow-btn" style="display:none">➕ تابع المبدع</button>
+          <button class="wa-btn" id="pp-chat-btn" onclick="" style="display:none;background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.4);color:#60a5fa">💬 راسله</button>
+        </div>
       </div>
 
       <!-- نبذة + موقع -->
@@ -3775,7 +4298,7 @@ footer a:hover{text-decoration:underline;}
       <div>
         <div class="fg"><label>اسم العمل *</label><input class="fc" id="ew-title" type="text"></div>
         <div class="fg"><label>التصنيف</label>
-          <select class="fc" id="ew-type"><option value="">اختر</option><option>مانجا</option><option>ويبتون</option><option>رواية مصورة</option><option>كتاب</option><option>مجلة</option></select>
+          <select class="fc" id="ew-type"><option value="">اختر</option><option>مانجا</option><option>ويبتون</option><option>رواية مصورة</option><option>رواية</option><option>كتاب</option><option>مجلة</option></select>
         </div>
         <div class="fg"><label>النوع</label>
           <select class="fc" id="ew-genre"><option value="">اختر</option><option>أكشن</option><option>رومانسي</option><option>فانتازيا</option><option>فانتازيا مظلمة</option><option>رعب</option><option>رعب نفسي</option><option>ديستوبيا</option><option>كوميدي</option><option>درامي</option><option>غموض</option><option>خيال علمي</option></select>
