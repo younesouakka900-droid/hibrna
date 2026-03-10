@@ -2299,20 +2299,22 @@ window.loadProfile=async()=>{
   if(statFollowers) statFollowers.textContent = (d.followers||[]).length.toLocaleString("ar");
   const statPoints = G("stat-points");
 
-  // نقاط وشارة
+  // نقاط وشارة — نحسب من Firestore أولاً ونحدث الإطار فوراً
   const pts = calcPoints(d);
   const badge = getBadge(pts);
   const pBadge = G("p-badge-display");
   if(pBadge) pBadge.innerHTML = badgeHTML(pts, "lg");
   const pPts = G("p-points-count");
   if(pPts) pPts.textContent = pts.toLocaleString("ar");
+  // تحديث الإطار فوراً
+  updateAvatarRing(pts);
   // شريط التقدم للشارة التالية
   const nextBadge = BADGES.slice().reverse().find(b => b.pts > pts);
   const prevPts = badge.pts;
   const nextPts = nextBadge ? nextBadge.pts : pts;
   const pct = nextBadge ? Math.min(100, Math.round(((pts - prevPts) / (nextPts - prevPts)) * 100)) : 100;
   if(statPoints) statPoints.textContent = pts.toLocaleString("ar");
-  // الإطار يُحدَّث لاحقاً بعد حساب النقاط الحقيقية من الأعمال
+  // الإطار يُحدَّث لاحقاً أيضاً بعد حساب النقاط الحقيقية من الأعمال
   const bar = G("p-points-bar");
   if(bar) setTimeout(()=>{ bar.style.width = pct + "%"; bar.style.background = `linear-gradient(90deg,${badge.color},${nextBadge?.color||badge.color})`; }, 300);
   const lbl = G("p-next-badge-lbl");
@@ -2355,21 +2357,21 @@ window.loadProfile=async()=>{
   const realTotalViews = allWorks.reduce((s,w)=>s+(w.views||0),0);
   const realTotalLikes = allWorks.reduce((s,w)=>s+(w.likes||0),0);
   const realData = {
-    ...d,
     worksCount: allWorks.length,
     totalViews: realTotalViews,
     totalLikes: realTotalLikes,
-    followers: d.followers || []
+    totalRatings: d.totalRatings||0,
+    totalComments: d.totalComments||0,
+    followers: Array.isArray(d.followers) ? d.followers : []
   };
   const realPts = calcPoints(realData);
-  // تأخير بسيط لضمان تطبيق الإطار بعد رسم الصفحة
-  setTimeout(()=>{
-    updateAvatarRing(realPts);
-    if(G("p-badge-display")) G("p-badge-display").innerHTML = badgeHTML(realPts, "lg");
-    if(G("p-points-count")) G("p-points-count").textContent = realPts.toLocaleString("ar");
-    if(G("p-stats-points")) G("p-stats-points").textContent = realPts.toLocaleString("ar");
-    if(G("av-badge-icon")) G("av-badge-icon").textContent = getBadge(realPts).icon;
-  }, 100);
+  // تحديث فوري + تأكيد بعد 300ms
+  updateAvatarRing(realPts);
+  if(G("p-badge-display")) G("p-badge-display").innerHTML = badgeHTML(realPts, "lg");
+  if(G("p-points-count")) G("p-points-count").textContent = realPts.toLocaleString("ar");
+  if(G("p-stats-points")) G("p-stats-points").textContent = realPts.toLocaleString("ar");
+  if(G("av-badge-icon")) G("av-badge-icon").textContent = getBadge(realPts).icon;
+  setTimeout(()=>{ updateAvatarRing(realPts); }, 500);
 
   // أفضل الأعمال (ترتيب حسب المشاهدات)
   const topSec = G("p-top-works-sec");
@@ -3155,7 +3157,7 @@ section{padding:4.5rem 2rem;}
 .p-head{display:flex;align-items:flex-end;gap:1.5rem;margin-top:-62px;padding-bottom:1.5rem;border-bottom:1px solid var(--br);flex-wrap:wrap;position:relative;z-index:2;background:var(--ink);padding-top:.5rem;}
 .p-av-wrap{position:relative;flex-shrink:0;cursor:pointer;}
 /* ── إطارات الرتب — الإطار يتحرك، الصورة ثابتة بلونها الطبيعي ── */
-.p-av-ring{width:128px;height:128px;border-radius:50%;padding:3px;position:relative;}
+.p-av-ring{width:128px;height:128px;border-radius:50%;padding:4px;position:relative;display:flex;align-items:center;justify-content:center;}
 
 /* 🌱 مبدع جديد */
 .p-av-ring.ring-new{
@@ -3200,7 +3202,7 @@ section{padding:4.5rem 2rem;}
   0%,100%{box-shadow:0 0 30px rgba(255,215,0,.8),0 0 60px rgba(255,165,0,.4);}
   50%{box-shadow:0 0 50px rgba(255,215,0,1),0 0 80px rgba(255,165,0,.7),0 0 100px rgba(255,200,0,.3);}
 }
-.p-av-inner{width:100%;height:100%;border-radius:50%;background:var(--s1);border:3px solid var(--ink);overflow:hidden;display:flex;align-items:center;justify-content:center;position:relative;}
+.p-av-inner{width:calc(100% - 6px);height:calc(100% - 6px);border-radius:50%;background:var(--s1);border:2px solid var(--ink);overflow:hidden;display:flex;align-items:center;justify-content:center;position:relative;margin:3px;}
 /* الصورة الشخصية تعكس دوران الإطار لتبقى بلونها الطبيعي */
 .p-av-ring.ring-new .p-av-inner,
 .p-av-ring.ring-promising .p-av-inner,
