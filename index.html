@@ -2126,7 +2126,10 @@ const BADGES = [
 ];
 
 function getBadge(pts=0){
-  return [...BADGES].reverse().find(b => pts >= b.pts) || BADGES[BADGES.length-1];
+  // البحث من الأعلى للأسفل (BADGES مرتبة تنازلياً)
+  const p = parseInt(pts) || 0;
+  for(const b of BADGES){ if(p >= b.pts) return b; }
+  return BADGES[BADGES.length-1];
 }
 
 function calcPoints(userData){
@@ -2718,12 +2721,14 @@ function updateAvatarRing(pts){
   const badge = getBadge(p);
   const ring = G("p-av-ring");
   if(!ring) return;
-  // إزالة كل الكلاسات القديمة بشكل مضمون
-  ring.className = "p-av-ring ring-" + badge.id;
-  // تحديث شارة الـ badge الصغيرة
+  // إزالة كل كلاسات الإطارات الممكنة
+  const allRings = ["ring-new","ring-reader","ring-student","ring-warrior","ring-elite","ring-hero","ring-legend","ring-immortal","ring-myth","ring-god","ring-active","ring-promising"];
+  allRings.forEach(r => ring.classList.remove(r));
+  // إضافة الكلاس الجديد
+  ring.classList.add("ring-" + badge.id);
+  // تحديث الشارة الصغيرة واللقب
   const avBadge = G("av-badge-icon");
   if(avBadge) avBadge.textContent = badge.icon;
-  // تحديث نص اللقب في الصفحة الشخصية
   const badgeDisplay = G("p-badge-display");
   if(badgeDisplay) badgeDisplay.innerHTML = badgeHTML(p, "lg");
 }
