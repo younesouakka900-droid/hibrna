@@ -103,6 +103,11 @@ onAuthStateChanged(auth, async user=>{
     // طبّق صور الحساب الجديد فقط
     if(CUD.avatarUrl) setAvatarUI(CUD.avatarUrl);
     if(CUD.coverUrl)  setCoverUI(CUD.coverUrl);
+    // ✅ تحديث إطار المستوى فور جلب البيانات
+    if(window.updateAvatarRing && window.calcPoints && window.CUD){
+      const _pts = calcPoints(window.CUD);
+      updateAvatarRing(_pts);
+    }
     // أظهر/أخفي زر الإدارة
     const adminBtn=G("nav-admin-btn");
     if(adminBtn) adminBtn.style.display=isAdmin()?"inline-flex":"none";
@@ -2091,11 +2096,16 @@ document.addEventListener("click", () => {
 
 // ─── POINTS & BADGES SYSTEM ───
 const BADGES = [
-  { id:"legend",    label:"أسطورة",       icon:"👑", color:"#FFD700", pts:5000 },
-  { id:"elite",     label:"متميز",         icon:"💎", color:"#00D4FF", pts:1000 },
-  { id:"active",    label:"نشط",           icon:"🔥", color:"#FF6B35", pts:500  },
-  { id:"promising", label:"واعد",          icon:"⭐", color:"#C0C0C0", pts:100  },
-  { id:"new",       label:"مبدع جديد",     icon:"🌱", color:"#4CAF50", pts:0    },
+  { id:"god",      label:"إله المانجا",   icon:"⚡", color:"#FF0080", pts:50000 },
+  { id:"myth",     label:"أسطورة",        icon:"👑", color:"#FFD700", pts:20000 },
+  { id:"immortal", label:"خالد",          icon:"♾️", color:"#FF4500", pts:10000 },
+  { id:"legend",   label:"أسطوري",        icon:"🌟", color:"#FF6B00", pts:5000  },
+  { id:"hero",     label:"بطل",           icon:"⚔️", color:"#9B30FF", pts:2000  },
+  { id:"elite",    label:"محارب نخبة",    icon:"💎", color:"#00D4FF", pts:1000  },
+  { id:"warrior",  label:"محارب",         icon:"🔥", color:"#FF6B35", pts:500   },
+  { id:"student",  label:"متدرب",         icon:"📖", color:"#00BCD4", pts:200   },
+  { id:"reader",   label:"قارئ",          icon:"⭐", color:"#C0C0C0", pts:50    },
+  { id:"new",      label:"وافد جديد",     icon:"🌱", color:"#4CAF50", pts:0     },
 ];
 
 function getBadge(pts=0){
@@ -2692,6 +2702,9 @@ function updateAvatarRing(pts){
   // تحديث شارة الـ badge الصغيرة
   const avBadge = G("av-badge-icon");
   if(avBadge) avBadge.textContent = badge.icon;
+  // تحديث نص اللقب في الصفحة الشخصية
+  const badgeDisplay = G("p-badge-display");
+  if(badgeDisplay) badgeDisplay.innerHTML = badgeHTML(p, "lg");
 }
 
 // تحميل إعدادات التخصيص عند البدء
@@ -3185,10 +3198,50 @@ section{padding:4.5rem 2rem;}
 }
 /* 👑 أسطورة */
 .p-av-ring.ring-legend{
-  background:conic-gradient(#FFD700,#FFA500,#FFD700,#FF8C00,#FFD700,#FFEC6E,#FFD700);
-  box-shadow:0 0 30px rgba(255,215,0,.8),0 0 60px rgba(255,165,0,.4);
+  background:conic-gradient(#FF6B00,#FFB347,#FF6B00,#FF4500,#FF8C00,#FF6B00);
+  box-shadow:0 0 25px rgba(255,107,0,.8),0 0 50px rgba(255,69,0,.4);
   animation:ring-legend 3s ease-in-out infinite;
   padding:4px;
+}
+/* 🌟 أسطوري */
+.p-av-ring.ring-myth{
+  background:conic-gradient(#FFD700,#FFF44F,#FFD700,#FFA500,#FFEC6E,#FFD700);
+  box-shadow:0 0 35px rgba(255,215,0,1),0 0 70px rgba(255,165,0,.6);
+  animation:ring-myth 2.5s ease-in-out infinite;
+  padding:5px;
+}
+/* ⚡ إله المانجا */
+.p-av-ring.ring-god{
+  background:conic-gradient(#FF0080,#FF00FF,#8B00FF,#FF0080,#00FFFF,#FF0080);
+  box-shadow:0 0 40px rgba(255,0,128,1),0 0 80px rgba(139,0,255,.7),0 0 120px rgba(0,255,255,.4);
+  animation:ring-god 2s linear infinite;
+  padding:6px;
+}
+/* ♾️ خالد */
+.p-av-ring.ring-immortal{
+  background:conic-gradient(#FF4500,#FF6347,#FF0000,#FF4500,#FF8C00,#FF4500);
+  box-shadow:0 0 30px rgba(255,69,0,.9),0 0 60px rgba(255,0,0,.5);
+  animation:ring-rotate 4s linear infinite;
+  padding:4px;
+}
+/* ⚔️ بطل */
+.p-av-ring.ring-hero{
+  background:conic-gradient(#9B30FF,#BF5FFF,#7B00FF,#9B30FF,#DA70D6,#9B30FF);
+  box-shadow:0 0 25px rgba(155,48,255,.7),0 0 50px rgba(123,0,255,.4);
+  animation:ring-rotate 6s linear infinite;
+  padding:4px;
+}
+/* 📖 متدرب */
+.p-av-ring.ring-student{
+  background:conic-gradient(#00BCD4,#4DD0E1,#00ACC1,#00BCD4,#80DEEA,#00BCD4);
+  box-shadow:0 0 18px rgba(0,188,212,.5);
+  animation:ring-rotate 9s linear infinite;
+}
+/* ⭐ قارئ */
+.p-av-ring.ring-reader{
+  background:conic-gradient(#C0C0C0,#E8E8E8,#A8A8A8,#E8E8E8,#C0C0C0);
+  box-shadow:0 0 14px rgba(192,192,192,.4);
+  animation:ring-rotate 12s linear infinite;
 }
 
 @keyframes ring-rotate{
@@ -3205,18 +3258,28 @@ section{padding:4.5rem 2rem;}
 .p-av-inner{width:calc(100% - 6px);height:calc(100% - 6px);border-radius:50%;background:var(--s1);border:2px solid var(--ink);overflow:hidden;display:flex;align-items:center;justify-content:center;position:relative;margin:3px;}
 /* الصورة الشخصية تعكس دوران الإطار لتبقى بلونها الطبيعي */
 .p-av-ring.ring-new .p-av-inner,
-.p-av-ring.ring-promising .p-av-inner,
-.p-av-ring.ring-elite .p-av-inner{
-  animation:ring-counter 10s linear infinite;
-}
-.p-av-ring.ring-active .p-av-inner{
-  animation:ring-counter 10s linear infinite;
-}
-.p-av-ring.ring-legend .p-av-inner{
-  animation:ring-counter 10s linear infinite;
+.p-av-ring.ring-reader .p-av-inner,
+.p-av-ring.ring-student .p-av-inner,
+.p-av-ring.ring-warrior .p-av-inner,
+.p-av-ring.ring-elite .p-av-inner,
+.p-av-ring.ring-hero .p-av-inner,
+.p-av-ring.ring-legend .p-av-inner,
+.p-av-ring.ring-immortal .p-av-inner,
+.p-av-ring.ring-myth .p-av-inner,
+.p-av-ring.ring-god .p-av-inner{
+  animation:ring-counter 8s linear infinite;
 }
 @keyframes ring-counter{
   from{transform:rotate(0deg)} to{transform:rotate(-360deg)}
+}
+@keyframes ring-myth{
+  0%,100%{box-shadow:0 0 35px rgba(255,215,0,1),0 0 70px rgba(255,165,0,.6);}
+  50%{box-shadow:0 0 55px rgba(255,215,0,1),0 0 100px rgba(255,165,0,.9),0 0 130px rgba(255,200,0,.5);}
+}
+@keyframes ring-god{
+  0%{background:conic-gradient(#FF0080,#FF00FF,#8B00FF,#FF0080,#00FFFF,#FF0080);transform:rotate(0deg);}
+  50%{background:conic-gradient(#00FFFF,#FF0080,#FF00FF,#8B00FF,#FF0080,#00FFFF);}
+  100%{background:conic-gradient(#FF0080,#FF00FF,#8B00FF,#FF0080,#00FFFF,#FF0080);transform:rotate(360deg);}
 }
 #p-av-ini{font-family:'Bebas Neue';font-size:2.5rem;color:var(--red);letter-spacing:2px;}
 #p-av-img{width:100%;height:100%;object-fit:cover;border-radius:50%;display:none;}
