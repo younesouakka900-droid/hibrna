@@ -2623,7 +2623,7 @@ window.doSearch=()=>{
 };
 
 // ─── البحث المتقدم ───
-window._advFilters = { type:"all", genre:"all", status:"all", sort:"newest" };
+window._advFilters = { type:"all", genre:"all", status:"all", sort:"newest", rating:"all" };
 
 window.toggleAdvFilters = () => {
   const panel = G("adv-filters-panel");
@@ -2635,7 +2635,7 @@ window.toggleAdvFilters = () => {
 };
 
 window.setAdvChip = (el, group) => {
-  const containerId = { type:"adv-type-chips", genre:"adv-genre-chips", status:"adv-status-chips", sort:"adv-sort-chips" }[group];
+  const containerId = { type:"adv-type-chips", genre:"adv-genre-chips", status:"adv-status-chips", sort:"adv-sort-chips", rating:"adv-rating-chips" }[group];
   G(containerId).querySelectorAll(".achip").forEach(c => c.classList.remove("active"));
   el.classList.add("active");
   window._advFilters[group] = el.dataset.val;
@@ -2650,9 +2650,9 @@ window.setAdvChip = (el, group) => {
 };
 
 window.resetAdvSearch = () => {
-  window._advFilters = { type:"all", genre:"all", status:"all", sort:"newest" };
+  window._advFilters = { type:"all", genre:"all", status:"all", sort:"newest", rating:"all" };
   // إعادة ضبط كل الـ chips
-  ["adv-type-chips","adv-genre-chips","adv-status-chips","adv-sort-chips"].forEach(id => {
+  ["adv-type-chips","adv-genre-chips","adv-status-chips","adv-sort-chips","adv-rating-chips"].forEach(id => {
     const container = G(id);
     if(!container) return;
     container.querySelectorAll(".achip").forEach((c,i) => c.classList.toggle("active", i===0));
@@ -2675,6 +2675,7 @@ window.applyAdvSearch = () => {
   if(f.genre  !== "all") activeCount++;
   if(f.status !== "all") activeCount++;
   if(f.sort   !== "newest") activeCount++;
+  if(f.rating !== "all") activeCount++;
   if(q) activeCount++;
 
   const badge = G("adv-filters-count");
@@ -2688,6 +2689,7 @@ window.applyAdvSearch = () => {
     if(f.type  !=="all") tags.push(`📂 ${f.type}`);
     if(f.genre !=="all") tags.push(`🎭 ${f.genre}`);
     if(f.status!=="all") tags.push(`📌 ${f.status}`);
+    if(f.rating!=="all") tags.push(`⭐ ${f.rating}+`);
     if(f.sort  !=="newest") tags.push(`🔃 ${{views:"الأكثر مشاهدة",likes:"الأكثر إعجاباً",title:"أبجدياً"}[f.sort]||f.sort}`);
     activeBar.style.display = tags.length ? "flex" : "none";
     activeBar.innerHTML = tags.map(t=>
@@ -2721,6 +2723,8 @@ window.loadWorksAdvanced = async (searchQ, filters) => {
     if(filters.type   !== "all") works = works.filter(w => w.type   === filters.type);
     if(filters.genre  !== "all") works = works.filter(w => w.genre  === filters.genre);
     if(filters.status !== "all") works = works.filter(w => w.status === filters.status);
+    if(filters.rating !== "all") works = works.filter(w => (w.rating||0) >= parseFloat(filters.rating));
+    if(filters.sort === "rating") works.sort((a,b)=>(b.rating||0)-(a.rating||0));
     if(searchQ){
       works = works.filter(w =>
         w.title?.toLowerCase().includes(searchQ) ||
@@ -4531,6 +4535,25 @@ footer a:hover{text-decoration:underline;}
 
 
 
+
+/* ══ تحسينات البحث المتقدم ══ */
+.adv-search-bar{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:20px;padding:1.2rem 1.3rem;margin-bottom:1.5rem;transition:border-color .3s;}
+.adv-search-bar:focus-within{border-color:rgba(232,25,44,.35);}
+.adv-search-row{display:flex;gap:.7rem;align-items:center;}
+.adv-search-input-wrap input{width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:12px;color:var(--w);font-family:'Tajawal';font-size:.95rem;padding:.75rem 2.5rem .75rem 1rem;outline:none;transition:all .2s;box-sizing:border-box;}
+.adv-search-input-wrap input:focus{border-color:var(--red);background:rgba(255,255,255,.08);}
+.adv-toggle-btn{background:rgba(232,25,44,.1);border:1px solid rgba(232,25,44,.3);color:var(--red);border-radius:12px;padding:.7rem 1rem;font-family:'Tajawal';font-size:.85rem;cursor:pointer;white-space:nowrap;flex-shrink:0;font-weight:700;transition:all .2s;}
+.adv-toggle-btn:hover,.adv-toggle-btn.open{background:rgba(232,25,44,.2);border-color:var(--red);}
+.adv-filters-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:1rem;}
+.adv-filter-group label{display:block;font-size:.78rem;font-weight:800;color:rgba(255,255,255,.5);margin-bottom:.5rem;text-transform:uppercase;letter-spacing:.5px;}
+.adv-chips{display:flex;flex-wrap:wrap;gap:.4rem;}
+.achip{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.6);border-radius:20px;padding:.3rem .8rem;font-family:'Tajawal';font-size:.78rem;cursor:pointer;transition:all .2s;font-weight:600;}
+.achip:hover{border-color:rgba(232,25,44,.4);color:#fff;}
+.achip.active{background:rgba(232,25,44,.15);border-color:var(--red);color:var(--red);font-weight:800;}
+@media(max-width:480px){
+  .adv-filters-grid{grid-template-columns:1fr;}
+}
+
 /* ══ ABOUT PAGE ══ */
 .about-hero{position:relative;overflow:hidden;padding:4rem 1.5rem 3rem;text-align:center;
   background:linear-gradient(180deg,#080010 0%,#0d0018 50%,#080010 100%);}
@@ -4599,6 +4622,12 @@ footer a:hover{text-decoration:underline;}
 }
 
 </style>
+<link rel="manifest" href="/manifest.json">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="MangaVerse">
+<meta name="theme-color" content="#e8192c">
 <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/younesouakka900-droid/%D8%B9%D8%A7%D9%84%D9%85-%D8%A7%D9%84%D9%85%D8%A7%D9%86%D8%AC%D8%A7/main/favicon.png">
 <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/younesouakka900-droid/%D8%B9%D8%A7%D9%84%D9%85-%D8%A7%D9%84%D9%85%D8%A7%D9%86%D8%AC%D8%A7/main/favicon.png">
 <!-- Adsterra Popunder -->
@@ -5633,10 +5662,21 @@ footer a:hover{text-decoration:underline;}
             </div>
 
             <div class="adv-filter-group">
+              <label>⭐ التقييم</label>
+              <div class="adv-chips" id="adv-rating-chips">
+                <button class="achip active" data-val="all" onclick="setAdvChip(this,'rating')">الكل</button>
+                <button class="achip" data-val="4.5" onclick="setAdvChip(this,'rating')">⭐ 4.5+</button>
+                <button class="achip" data-val="4" onclick="setAdvChip(this,'rating')">⭐ 4+</button>
+                <button class="achip" data-val="3" onclick="setAdvChip(this,'rating')">⭐ 3+</button>
+              </div>
+            </div>
+
+            <div class="adv-filter-group">
               <label>🔃 الترتيب</label>
               <div class="adv-chips" id="adv-sort-chips">
                 <button class="achip active" data-val="newest" onclick="setAdvChip(this,'sort')">الأحدث</button>
                 <button class="achip" data-val="views" onclick="setAdvChip(this,'sort')">الأكثر مشاهدة</button>
+                <button class="achip" data-val="rating" onclick="setAdvChip(this,'sort')">الأعلى تقييماً</button>
                 <button class="achip" data-val="likes" onclick="setAdvChip(this,'sort')">الأكثر إعجاباً</button>
                 <button class="achip" data-val="title" onclick="setAdvChip(this,'sort')">أبجدياً</button>
               </div>
