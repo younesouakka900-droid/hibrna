@@ -962,6 +962,7 @@ window.openWork=async id=>{
   window._shareWorkUrl   = _workUrl;
   window._shareWorkDesc  = w.desc || "";
   openModal("m-work");
+  setTimeout(()=>updateLikeBtn(id), 300);
   }catch(e){ }
   finally{ clearTimeout(_owTimeout); window._openingWork=false; }
 };
@@ -5069,7 +5070,7 @@ footer a:hover{text-decoration:underline;}
 
 
 <!-- BADGE NOTIFICATION -->
-<div class="badge-notify" id="badge-notify">
+<div class="badge-notify" id="badge-notify" style="display:none">
   <div class="badge-notify-icon" id="badge-notify-icon">🏆</div>
   <div class="badge-notify-text">
     <div class="title" id="badge-notify-title">شارة جديدة!</div>
@@ -5519,6 +5520,18 @@ footer a:hover{text-decoration:underline;}
         </div>
       </div>
       <button onclick="const h=G('p-points-how');h.style.display=h.style.display==='none'?'block':'none'" style="background:transparent;border:none;color:var(--mu);font-size:.75rem;font-family:'Tajawal';cursor:pointer;margin-top:.4rem;padding:0">كيف أكسب المزيد؟ ▾</button>
+    </div>
+
+    
+    <!-- 🏅 شاراتي -->
+    <div style="margin-top:1.5rem" id="p-badges-section">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.8rem">
+        <span class="stag">🏅 شاراتي</span>
+        <button onclick="showPage('achievements')" style="background:transparent;border:none;color:var(--red);font-family:'Tajawal';font-size:.8rem;font-weight:700;cursor:pointer">عرض الكل ←</button>
+      </div>
+      <div id="p-badges-grid" style="display:flex;gap:.5rem;flex-wrap:wrap;min-height:40px">
+        <div style="color:rgba(255,255,255,.3);font-size:.82rem;padding:.5rem 0">لا توجد شارات بعد 🌱</div>
+      </div>
     </div>
 
     <!-- STATS CARDS -->
@@ -6030,8 +6043,9 @@ function showBadgeNotify(badge){
   icon.textContent = badge.icon;
   title.textContent = `🏅 شارة جديدة: ${badge.name}`;
   sub.textContent = badge.desc;
-  el.classList.add("show");
-  setTimeout(()=>el.classList.remove("show"), 4000);
+  el.style.display = "flex";
+  setTimeout(()=>{ el.classList.add("show"); }, 50);
+  setTimeout(()=>{ el.classList.remove("show"); setTimeout(()=>{ el.style.display="none"; },400); }, 4500);
 }
 
 // ── زر الإعجاب ──
@@ -6086,36 +6100,7 @@ window.toggleLike = async function(workId){
 };
 
 // تحديث حالة زر الإعجاب عند فتح العمل
-const _origOpenWork = window.openWork;
-window.openWork = async function(id){
-  await _origOpenWork(id);
-  if(!CU) return;
-  try{
-    const wSnap = await getDoc(doc(db,"works",id));
-    if(!wSnap.exists()) return;
-    const likedBy = wSnap.data().likedBy || [];
-    const likes = wSnap.data().likes || 0;
-    const btn = document.getElementById("wm-like-btn");
-    if(btn){
-      if(likedBy.includes(CU.uid)){
-        btn.classList.add("liked");
-        btn.textContent = `❤️ أعجبني (${likes})`;
-      } else {
-        btn.classList.remove("liked");
-        btn.textContent = `❤️ إعجاب (${likes})`;
-      }
-    }
-    // نقاط القراءة
-    await addPoints(CU.uid, "read_work");
-    // تحقق شارات
-    const uSnap = await getDoc(doc(db,"users",CU.uid));
-    if(uSnap.exists()){
-      await setDoc(doc(db,"users",CU.uid),{ worksRead: increment(1) },{ merge:true });
-      const updated = await getDoc(doc(db,"users",CU.uid));
-      checkAndAwardBadges(CU.uid, updated.data());
-    }
-  }catch(e){}
-};
+// like btn handled in updateLikeBtn
 
 // نقاط عند النشر
 const _origDoPublish = window.doPublish;
@@ -6340,6 +6325,55 @@ async function awardFirstRegBadge(uid){
       }
     }
   }catch(e){}
+}
+
+
+async function updateLikeBtn(id){
+  if(!CU) return;
+  try{
+    const wSnap = await getDoc(doc(db,"works",id));
+    if(!wSnap.exists()) return;
+    const likedBy = wSnap.data().likedBy || [];
+    const likes = wSnap.data().likes || 0;
+    const btn = document.getElementById("wm-like-btn");
+    if(btn){
+      if(likedBy.includes(CU.uid)){
+        btn.classList.add("liked"); btn.textContent = `❤️ أعجبني (${likes})`;
+      } else {
+        btn.classList.remove("liked"); btn.textContent = `❤️ إعجاب (${likes})`;
+      }
+    }
+    Promise.all([
+      addPoints(CU.uid, "read_work"),
+      setDoc(doc(db,"users",CU.uid),{ worksRead: increment(1) },{ merge:true })
+    ]).then(async()=>{
+      const updated = await getDoc(doc(db,"users",CU.uid));
+      if(updated.exists()) checkAndAwardBadges(CU.uid, updated.data());
+    }).catch(()=>{});
+  }catch(e){}
+}
+
+
+function renderProfileBadges(earnedIds){
+  const grid = document.getElementById("p-badges-grid");
+  if(!grid) return;
+  if(!earnedIds || earnedIds.length === 0){
+    grid.innerHTML = '<div style="color:rgba(255,255,255,.3);font-size:.82rem;padding:.5rem 0">لا توجد شارات بعد 🌱</div>';
+    return;
+  }
+  const allEarned = ACHIEVEMENTS.filter(a => earnedIds.includes(a.id));
+  if(allEarned.length === 0){
+    grid.innerHTML = '<div style="color:rgba(255,255,255,.3);font-size:.82rem;padding:.5rem 0">لا توجد شارات بعد 🌱</div>';
+    return;
+  }
+  const show = allEarned.slice(-8);
+  grid.innerHTML = show.map(a => {
+    const sc = a.shape==="pentagon"?"ach-pentagon":a.shape==="diamond"?"ach-diamond":"ach-circle";
+    return `<div title="${a.name}" style="display:flex;flex-direction:column;align-items:center;gap:.25rem">
+      <div class="${sc} ${a.clr}" style="width:44px;height:44px;font-size:1.1rem">${a.icon}</div>
+      <div style="font-size:.6rem;color:rgba(255,255,255,.45);max-width:44px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${a.name}</div>
+    </div>`;
+  }).join("") + (allEarned.length > 8 ? `<div onclick="showPage('achievements')" style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.05);border:1px solid var(--br);border-radius:50%;font-size:.72rem;color:var(--mu);cursor:pointer">+${allEarned.length-8}</div>` : "");
 }
 
 window._curPage='home';
