@@ -2244,8 +2244,9 @@ function getBadge(pts=0){
 
 // ── توهج الاسم حسب المستوى ──
 function getNameGlowClass(userData){
-  if(userData?.email === 'younassouakka@gmail.com' || userData?.isAdmin) return 'uname-admin';
-  const pts = userData?.points || calcPoints(userData || {});
+  const email = userData?.email || '';
+  if(email === 'younassouakka@gmail.com' || userData?.isAdmin) return 'uname-admin';
+  const pts = (userData?.points !== undefined) ? userData.points : calcPoints(userData || {});
   if(pts >= 2000) return 'uname-diamond';
   if(pts >= 500)  return 'uname-gold';
   if(pts >= 100)  return 'uname-silver';
@@ -2254,8 +2255,11 @@ function getNameGlowClass(userData){
 }
 
 function glowName(name, userData, verified=false){
-  const cls = getNameGlowClass(userData);
+  const pts = userData?.points || calcPoints(userData || {});
+  const dataWithPts = {...(userData||{}), points: pts};
+  const cls = getNameGlowClass(dataWithPts);
   const vbadge = verified ? '<span class="vbadge">✦ موثق</span>' : '';
+  if(!cls) return `${name}${vbadge}`;
   return `<span class="${cls}">${name}</span>${vbadge}`;
 }
 
@@ -3225,7 +3229,7 @@ body.light-mode .msg-theirs .msg-bubble{background:rgba(0,0,0,.07);color:#1a1a2e
 .msg-time{font-size:.65rem;color:var(--mu);margin-top:.2rem;padding:0 .3rem;}
 
 /* ─── TYPE TABS ─── */
-.type-tabs{display:flex;gap:.5rem;overflow-x:auto;padding:.2rem 0 .8rem;scrollbar-width:none;-ms-overflow-style:none;margin-bottom:.5rem;}
+.type-tabs{display:flex;gap:.5rem;overflow-x:auto;padding:.2rem 0 .8rem;scrollbar-width:none;-ms-overflow-style:none;margin-bottom:.5rem;position:relative;z-index:10;}
 .type-tabs::-webkit-scrollbar{display:none;}
 .ttab{flex-shrink:0;padding:.5rem 1.1rem;border-radius:30px;border:1.5px solid var(--br);background:transparent;color:var(--mu);font-family:'Tajawal';font-size:.85rem;font-weight:600;cursor:pointer;transition:all .2s;white-space:nowrap;}
 .ttab:hover{border-color:var(--red);color:var(--red);}
@@ -4619,12 +4623,12 @@ footer a:hover{text-decoration:underline;}
 .ttab-arrow{font-size:.65rem;margin-right:.3rem;transition:transform .2s;display:inline-block;}
 .ttab-wrap.open .ttab-arrow{transform:rotate(180deg);}
 .subtypes-dropdown{
-  position:absolute;top:calc(100% + 8px);right:0;
+  position:fixed;
   background:#13131f;border:1px solid rgba(255,255,255,.1);
-  border-radius:16px;padding:.6rem;z-index:200;
+  border-radius:16px;padding:.6rem;z-index:99999;
   display:none;flex-direction:column;gap:.35rem;
   min-width:160px;
-  box-shadow:0 8px 32px rgba(0,0,0,.6);
+  box-shadow:0 8px 32px rgba(0,0,0,.8);
   animation:dropIn .18s ease;
 }
 @keyframes dropIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
@@ -6873,9 +6877,19 @@ window.toggleSubtypes = (e, type) => {
   const wrap = document.getElementById(wrapId);
   if(!wrap) { setTypeTab(e.target.closest('.ttab'), type); return; }
   const isOpen = wrap.classList.contains('open');
-  // أغلق كل القوائم
   document.querySelectorAll('.ttab-wrap.open').forEach(w => w.classList.remove('open'));
-  if(!isOpen) wrap.classList.add('open');
+  if(!isOpen){
+    wrap.classList.add('open');
+    // حساب موضع fixed بناءً على موضع الزر
+    const btn = wrap.querySelector('.ttab');
+    const rect = btn.getBoundingClientRect();
+    const dropdown = wrap.querySelector('.subtypes-dropdown');
+    if(dropdown){
+      dropdown.style.top = (rect.bottom + 6) + 'px';
+      dropdown.style.right = (window.innerWidth - rect.right) + 'px';
+      dropdown.style.left = 'auto';
+    }
+  }
 };
 
 window.setSubType = (type, genre) => {
