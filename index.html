@@ -340,7 +340,7 @@ window.doLogout=async()=>{
 window.pickAvatar=()=>{ if(!CU){openModal("m-auth");return;} G("inp-avatar").click(); };
 window.onAvatarPick=async inp=>{
   if(!inp.files[0]) return;
-  if(inp.files[0].size>10*1024*1024) return toast("⚠️ الصورة أكبر من 10MB — الحد الأقصى المسموح","w");
+  if(inp.files[0].size>50*1024*1024) return toast("⚠️ الصورة أكبر من 50MB — الحد الأقصى المسموح","w");
   toast("⏳ جاري رفع الصورة...");
   try{
     const url = await cloudinaryUpload(inp.files[0]);
@@ -413,7 +413,7 @@ window.doPublish=async()=>{
     }
     // ── رفع PDF مباشرة ──
     else if(pdfFile && !extUrl){
-      if(pdfFile.size>10*1024*1024) return toast("⚠️ PDF أكبر من 10MB — الحد الأقصى في الخطة المجانية","w");
+      if(pdfFile.size>50*1024*1024) return toast("⚠️ PDF أكبر من 50MB — الحد الأقصى المسموح","w");
       toast("⏳ جاري رفع PDF...");
       fileUrl  = await cloudinaryUpload(pdfFile);
       fileName = pdfFile.name;
@@ -743,6 +743,7 @@ window.shareWork=function(e,id,title){
 };
 
 function workCard(w){
+  const isCS = w.status === 'قريباً';
   const isBookmarked=CUD?.bookmarks?.includes(w.id);
   const safeTitle  = sanitize(w.title||"");
   const safeAuthor = sanitize(w.authorName||"");
@@ -750,22 +751,23 @@ function workCard(w){
   const safeStatus = sanitize(w.status||"مستمر");
   const safeGenre  = sanitize(w.genre||"");
   const escapedTitle = safeTitle.replace(/'/g,"\\'");
-  return `<div class="work-card" onclick="openWork('${w.id}')">
+  return `<div class="work-card ${isCS?'coming-soon-card ':'' }" onclick="${isCS?'openWork(\''+w.id+'\')'  :'openWork(\''+w.id+'\')'}">
     <div class="work-thumb">
       ${w.coverUrl?`<img loading="lazy" src="${w.coverUrl}" alt="${safeTitle}">`:`<div class="work-thumb-def">📚</div>`}
       <div class="work-badge-wrap">
         <span class="work-badge">${safeType}</span>
         <span class="status-badge ${statusClass(w.status)}">${safeStatus}</span>
       </div>
+      ${isCS?'<div class="cs-badge">🔜 قريباً</div>':''} 
       <div class="work-overlay">
-        <button class="work-read-btn">📖 قراءة</button>
+        ${isCS?'<button class="work-read-btn" style="background:rgba(232,25,44,.8);cursor:default">🔜 قريباً</button>':'<button class="work-read-btn">📖 قراءة</button>'}
         <button class="work-bk-btn ${isBookmarked?"bk-active":""}" onclick="event.stopPropagation();toggleBookmark('${w.id}')">🔖</button>
       </div>
       <button class="wc-share-btn" onclick="shareWork(event,'${w.id}','${escapedTitle}')" title="مشاركة الرابط">🔗</button>
     </div>
     <div class="work-title">${safeTitle} ${w.authorVerified?'<span class="vbadge-sm">✦</span>':''}</div>
     <div class="work-meta">
-      <span style="cursor:pointer;color:var(--mu)" onclick="event.stopPropagation();openPublicProfile('${w.authorId}')">✍️ ${safeAuthor}</span>
+      <span style="cursor:pointer" onclick="event.stopPropagation();openPublicProfile('${w.authorId}')">✍️ <span class="${getNameGlowClass({points:w.authorPoints||0,isAdmin:w.authorId==='admin'})}">${safeAuthor}</span></span>
       <span style="color:var(--mu);font-size:.78rem">👁 ${w.views||0}</span>
       ${w.rating?`<span style="color:var(--gold)">⭐ ${Number(w.rating).toFixed(1)}</span>`:""}
     </div>
@@ -818,7 +820,7 @@ window.openWork=async id=>{
   // ✅ اسم المبدع قابل للنقر لفتح صفحته العامة
   const authorLink = document.createElement("span");
   authorLink.style.cssText = "cursor:pointer;color:var(--red);font-weight:700;text-decoration:underline dotted;";
-  authorLink.textContent = `✍️ ${w.authorName||""}`;
+  authorLink.innerHTML = `✍️ <span class='${getNameGlowClass({points:w.authorPoints||0})}'>${sanitize(w.authorName||'')}</span>`;
   authorLink.onclick = () => { closeModal("m-work"); openPublicProfile(w.authorId); };
   authorEl.appendChild(authorLink);
   if(w.authorVerified){
@@ -1066,7 +1068,7 @@ window.doEditWork=async()=>{
     // PDF جديد → Firebase Storage مباشرة
     const pdfFile=G("ew-pdf").files[0];
     if(pdfFile && !url){
-      if(pdfFile.size>10*1024*1024) return toast("⚠️ PDF أكبر من 10MB — الحد الأقصى في الخطة المجانية","w");
+      if(pdfFile.size>50*1024*1024) return toast("⚠️ PDF أكبر من 50MB — الحد الأقصى المسموح","w");
       toast("⏳ جاري رفع PDF الجديد...");
       upd.fileUrl   = await cloudinaryUpload(pdfFile);
       upd.fileName  = pdfFile.name;
@@ -2239,6 +2241,24 @@ function getBadge(pts=0){
   return BADGES[BADGES.length-1];
 }
 
+
+// ── توهج الاسم حسب المستوى ──
+function getNameGlowClass(userData){
+  if(userData?.email === 'younassouakka@gmail.com' || userData?.isAdmin) return 'uname-admin';
+  const pts = userData?.points || calcPoints(userData || {});
+  if(pts >= 2000) return 'uname-diamond';
+  if(pts >= 500)  return 'uname-gold';
+  if(pts >= 100)  return 'uname-silver';
+  if(pts >= 10)   return 'uname-bronze';
+  return '';
+}
+
+function glowName(name, userData, verified=false){
+  const cls = getNameGlowClass(userData);
+  const vbadge = verified ? '<span class="vbadge">✦ موثق</span>' : '';
+  return `<span class="${cls}">${name}</span>${vbadge}`;
+}
+
 function calcPoints(userData){
   const works    = (userData.worksCount||0)    * 50;
   const views    = Math.floor((userData.totalViews||0) / 10) * 5;
@@ -2311,7 +2331,7 @@ window.openPublicProfile = async (uid) => {
     }
 
     // ── بيانات ──
-    G("pp-name").innerHTML = `${sanitize(d.name||"")} ${d.verified?'<span class="vbadge">✦ موثق</span>':""}`;
+    G("pp-name").innerHTML = glowName(sanitize(d.name||""), d, d.verified||false);
     G("pp-username").textContent   = d.username || "";
     G("pp-bio").textContent        = d.bio || "لا توجد نبذة بعد";
     G("pp-location").textContent   = d.location ? "📍 "+d.location : "";
@@ -4536,6 +4556,90 @@ footer a:hover{text-decoration:underline;}
 
 
 
+
+
+
+/* ══ توهج الاسم حسب المستوى ══ */
+.uname-bronze{
+  color:#cd7f32 !important;
+  text-shadow:0 0 8px rgba(205,127,50,.4);
+}
+.uname-silver{
+  background:linear-gradient(135deg,#c0c0c0,#e8e8e8,#a0a0a0);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  filter:drop-shadow(0 0 6px rgba(192,192,192,.5));
+}
+.uname-gold{
+  background:linear-gradient(135deg,#f5a623,#f7d060,#e8821a);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  filter:drop-shadow(0 0 8px rgba(245,166,35,.6));
+  animation:goldShimmer 3s ease-in-out infinite;
+}
+@keyframes goldShimmer{
+  0%,100%{filter:drop-shadow(0 0 6px rgba(245,166,35,.5))}
+  50%{filter:drop-shadow(0 0 14px rgba(245,166,35,.9))}
+}
+.uname-diamond{
+  background:linear-gradient(135deg,#667eea,#764ba2,#a78bfa,#60a5fa);
+  background-size:200% 200%;
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  animation:diamondFlow 3s ease infinite, diamondGlow 2s ease-in-out infinite;
+}
+@keyframes diamondFlow{
+  0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}
+}
+@keyframes diamondGlow{
+  0%,100%{filter:drop-shadow(0 0 8px rgba(167,139,250,.5))}
+  50%{filter:drop-shadow(0 0 18px rgba(96,165,250,.9))}
+}
+.uname-admin{
+  background:linear-gradient(135deg,#e8192c,#ff6b35,#e8192c);
+  background-size:200% 200%;
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  animation:adminPulse 2s ease infinite;
+}
+@keyframes adminPulse{
+  0%,100%{background-position:0% 50%;filter:drop-shadow(0 0 6px rgba(232,25,44,.5))}
+  50%{background-position:100% 50%;filter:drop-shadow(0 0 16px rgba(232,25,44,.9))}
+}
+
+/* ══ بطاقة قريباً ══ */
+.work-card.coming-soon-card{position:relative;overflow:hidden;}
+.work-card.coming-soon-card::before{content:'';position:absolute;inset:0;background:rgba(8,8,15,.5);z-index:1;}
+.cs-badge{position:absolute;top:.6rem;right:.6rem;z-index:2;
+  background:linear-gradient(135deg,var(--red),#ff6b35);
+  color:#fff;font-size:.72rem;font-weight:800;padding:.3rem .7rem;
+  border-radius:20px;letter-spacing:.5px;
+  box-shadow:0 2px 10px rgba(232,25,44,.4);
+  animation:csPulse 2s infinite;}
+@keyframes csPulse{0%,100%{box-shadow:0 2px 10px rgba(232,25,44,.4)}50%{box-shadow:0 2px 20px rgba(232,25,44,.7)}}
+
+/* ══ الفروع المتداخلة ══ */
+.ttab-wrap{position:relative;display:inline-flex;flex-shrink:0;}
+.ttab-arrow{font-size:.65rem;margin-right:.3rem;transition:transform .2s;display:inline-block;}
+.ttab-wrap.open .ttab-arrow{transform:rotate(180deg);}
+.subtypes-dropdown{
+  position:absolute;top:calc(100% + 8px);right:0;
+  background:#13131f;border:1px solid rgba(255,255,255,.1);
+  border-radius:16px;padding:.6rem;z-index:200;
+  display:none;flex-direction:column;gap:.35rem;
+  min-width:160px;
+  box-shadow:0 8px 32px rgba(0,0,0,.6);
+  animation:dropIn .18s ease;
+}
+@keyframes dropIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+.ttab-wrap.open .subtypes-dropdown{display:flex;}
+.stab{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);
+  color:rgba(255,255,255,.7);border-radius:10px;padding:.45rem .9rem;
+  font-family:'Tajawal';font-size:.82rem;font-weight:600;cursor:pointer;
+  transition:all .2s;text-align:right;white-space:nowrap;}
+.stab:hover{background:rgba(232,25,44,.12);border-color:rgba(232,25,44,.3);color:var(--red);}
+.stab.active{background:rgba(232,25,44,.18);border-color:var(--red);color:var(--red);font-weight:800;}
+.subtypes-divider{height:1px;background:rgba(255,255,255,.07);margin:.2rem 0;}
+body.light-mode .subtypes-dropdown{background:#fff;border-color:rgba(0,0,0,.1);}
+body.light-mode .stab{color:rgba(0,0,0,.6);}
+body.light-mode .stab:hover{color:var(--red);}
+
 /* ══ تحسينات البحث المتقدم ══ */
 .adv-search-bar{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:20px;padding:1.2rem 1.3rem;margin-bottom:1.5rem;transition:border-color .3s;}
 .adv-search-bar:focus-within{border-color:rgba(232,25,44,.35);}
@@ -4941,9 +5045,12 @@ footer a:hover{text-decoration:underline;}
             <option>غموض</option><option>خيال علمي</option></select>
         </div>
         <div class="fg"><label>حالة العمل *</label>
-          <select class="fc" id="w-status"><option value="مستمر">🔄 مستمر</option><option value="مكتمل">✅ مكتمل</option><option value="متوقف">⏸️ متوقف</option></select>
+          <select class="fc" id="w-status" onchange="toggleComingSoon(this.value)"><option value="مستمر">🔄 مستمر</option><option value="مكتمل">✅ مكتمل</option><option value="متوقف">⏸️ متوقف</option><option value="قريباً">🔜 قريباً</option></select>
         </div>
-        <div class="fg"><label>وصف العمل *</label><textarea class="fc" id="w-desc" rows="4" placeholder="اكتب ملخصاً مثيراً..."></textarea></div>
+        <div id="coming-soon-note" style="display:none;background:rgba(232,25,44,.08);border:1px solid rgba(232,25,44,.25);border-radius:12px;padding:.8rem 1rem;margin-bottom:.8rem;font-size:.82rem;color:rgba(255,255,255,.7);">
+  🔜 <strong style="color:var(--red)">وضع قريباً:</strong> سيظهر عملك كإعلان للقراء مع صورة الغلاف والوصف فقط — بدون رفع ملف.
+</div>
+<div class="fg"><label>وصف العمل *</label><textarea class="fc" id="w-desc" rows="4" placeholder="اكتب ملخصاً مثيراً..."></textarea></div>
         <hr class="section-divider">
         <div class="fg"><label class="opt">🔗 رابط خارجي (Drive, Dropbox...)</label><input class="fc" id="w-url" type="url" placeholder="https://..."></div>
         <hr class="section-divider">
@@ -4958,7 +5065,7 @@ footer a:hover{text-decoration:underline;}
           <label>🖼️ صورة غلاف العمل * (مطلوبة)</label>
           <div class="uz">
             <input type="file" id="w-cover-file" accept="image/*" onchange="prevCover(this)">
-            <div class="uzi">🖼️</div><h4>انقر لاختيار صورة الغلاف</h4><p>JPG, PNG — حتى 10MB</p>
+            <div class="uzi">🖼️</div><h4>انقر لاختيار صورة الغلاف</h4><p>JPG, PNG — حتى 50MB</p>
           </div>
           <div class="cover-prev-wrap" id="cover-prev"><img id="cover-prev-img" src="" alt=""></div>
         </div>
@@ -4970,12 +5077,12 @@ footer a:hover{text-decoration:underline;}
             <p id="pages-count">JPG, PNG — يدعم ويبتون ومانجا</p>
           </div>
         </div>
-        <div class="divider"><span>أو PDF (حتى 10MB)</span></div>
+        <div class="divider"><span>أو PDF (حتى 50MB)</span></div>
         <div class="fg">
           <div class="uz">
             <input type="file" id="w-pdf-file" accept=".pdf" onchange="showPdfName(this)">
             <div class="uzi">📄</div><h4>رفع ملف PDF</h4>
-            <p id="pdf-name-lbl" style="color:#f87171">⚠️ الحد الأقصى 10MB في الخطة المجانية</p>
+            <p id="pdf-name-lbl" style="color:rgba(255,255,255,.4)">PDF — حتى 50MB</p>
           </div>
         </div>
       </div>
@@ -5699,13 +5806,85 @@ footer a:hover{text-decoration:underline;}
 
       <!-- تبويبات النوع -->
       <div class="type-tabs" id="type-tabs" dir="rtl">
-        <button class="ttab" data-type="مانجا" onclick="setTypeTab(this,'مانجا')">⚔️ مانجا</button>
-        <button class="ttab" data-type="ويبتون" onclick="setTypeTab(this,'ويبتون')">📱 ويبتون</button>
-        <button class="ttab" data-type="رواية مصورة" onclick="setTypeTab(this,'رواية مصورة')">🎨 رواية مصورة</button>
-        <button class="ttab" data-type="رواية" onclick="setTypeTab(this,'رواية')">📖 رواية</button>
-        <button class="ttab" data-type="كتاب" onclick="setTypeTab(this,'كتاب')">📕 كتاب</button>
-        <button class="ttab" data-type="مجلة" onclick="setTypeTab(this,'مجلة')">📰 مجلة</button>
+
+        <!-- الكل -->
         <button class="ttab active" data-type="all" onclick="setTypeTab(this,'all')">📚 الكل</button>
+
+        <!-- مانجا -->
+        <div class="ttab-wrap" id="wrap-مانجا">
+          <button class="ttab" data-type="مانجا" onclick="toggleSubtypes(event,'مانجا')">⚔️ مانجا <span class="ttab-arrow">▾</span></button>
+          <div class="subtypes-dropdown">
+            <button class="stab" onclick="setSubType('مانجا','all')">📚 كل المانجا</button>
+            <div class="subtypes-divider"></div>
+            <button class="stab" onclick="setSubType('مانجا','أكشن')">⚔️ مانجا أكشن</button>
+            <button class="stab" onclick="setSubType('مانجا','رومانسي')">💕 مانجا رومانسية</button>
+            <button class="stab" onclick="setSubType('مانجا','فانتازيا')">🧙 مانجا فانتازيا</button>
+            <button class="stab" onclick="setSubType('مانجا','رعب')">👻 مانجا رعب</button>
+            <button class="stab" onclick="setSubType('مانجا','كوميدي')">😂 مانجا كوميدي</button>
+            <button class="stab" onclick="setSubType('مانجا','درامي')">🎭 مانجا درامية</button>
+            <button class="stab" onclick="setSubType('مانجا','خيال علمي')">🚀 مانجا خيال علمي</button>
+          </div>
+        </div>
+
+        <!-- ويبتون -->
+        <div class="ttab-wrap" id="wrap-ويبتون">
+          <button class="ttab" data-type="ويبتون" onclick="toggleSubtypes(event,'ويبتون')">📱 ويبتون <span class="ttab-arrow">▾</span></button>
+          <div class="subtypes-dropdown">
+            <button class="stab" onclick="setSubType('ويبتون','all')">📚 كل الويبتون</button>
+            <div class="subtypes-divider"></div>
+            <button class="stab" onclick="setSubType('ويبتون','أكشن')">⚔️ ويبتون أكشن</button>
+            <button class="stab" onclick="setSubType('ويبتون','رومانسي')">💕 ويبتون رومانسي</button>
+            <button class="stab" onclick="setSubType('ويبتون','فانتازيا')">🧙 ويبتون فانتازيا</button>
+            <button class="stab" onclick="setSubType('ويبتون','رعب')">👻 ويبتون رعب</button>
+            <button class="stab" onclick="setSubType('ويبتون','درامي')">🎭 ويبتون درامي</button>
+          </div>
+        </div>
+
+        <!-- رواية مصورة -->
+        <div class="ttab-wrap" id="wrap-رواية-مصورة">
+          <button class="ttab" data-type="رواية مصورة" onclick="toggleSubtypes(event,'رواية مصورة')">🎨 رواية مصورة <span class="ttab-arrow">▾</span></button>
+          <div class="subtypes-dropdown">
+            <button class="stab" onclick="setSubType('رواية مصورة','all')">📚 الكل</button>
+            <div class="subtypes-divider"></div>
+            <button class="stab" onclick="setSubType('رواية مصورة','أكشن')">⚔️ أكشن</button>
+            <button class="stab" onclick="setSubType('رواية مصورة','رومانسي')">💕 رومانسية</button>
+            <button class="stab" onclick="setSubType('رواية مصورة','فانتازيا')">🧙 فانتازيا</button>
+            <button class="stab" onclick="setSubType('رواية مصورة','غموض')">🔍 غموض</button>
+          </div>
+        </div>
+
+        <!-- رواية -->
+        <div class="ttab-wrap" id="wrap-رواية">
+          <button class="ttab" data-type="رواية" onclick="toggleSubtypes(event,'رواية')">📖 رواية <span class="ttab-arrow">▾</span></button>
+          <div class="subtypes-dropdown">
+            <button class="stab" onclick="setSubType('رواية','all')">📚 كل الروايات</button>
+            <div class="subtypes-divider"></div>
+            <button class="stab" onclick="setSubType('رواية','أكشن')">⚔️ رواية أكشن</button>
+            <button class="stab" onclick="setSubType('رواية','رومانسي')">💕 رواية رومانسية</button>
+            <button class="stab" onclick="setSubType('رواية','فانتازيا')">🧙 رواية فانتازيا</button>
+            <button class="stab" onclick="setSubType('رواية','رعب')">👻 رواية رعب</button>
+            <button class="stab" onclick="setSubType('رواية','ديستوبيا')">🌑 ديستوبيا</button>
+            <button class="stab" onclick="setSubType('رواية','خيال علمي')">🚀 خيال علمي</button>
+            <button class="stab" onclick="setSubType('رواية','درامي')">🎭 درامية</button>
+          </div>
+        </div>
+
+        <!-- كتاب -->
+        <button class="ttab" data-type="كتاب" onclick="setTypeTab(this,'كتاب')">📕 كتاب</button>
+
+        <!-- مجلة -->
+        <div class="ttab-wrap" id="wrap-مجلة">
+          <button class="ttab" data-type="مجلة" onclick="toggleSubtypes(event,'مجلة')">📰 مجلة <span class="ttab-arrow">▾</span></button>
+          <div class="subtypes-dropdown">
+            <button class="stab" onclick="setSubType('مجلة','all')">📚 كل المجلات</button>
+            <div class="subtypes-divider"></div>
+            <button class="stab" onclick="setSubType('مجلة','ترفيه')">🎉 ترفيه</button>
+            <button class="stab" onclick="setSubType('مجلة','ثقافة')">📚 ثقافة</button>
+            <button class="stab" onclick="setSubType('مجلة','فن')">🎨 فن وإبداع</button>
+            <button class="stab" onclick="setSubType('مجلة','تقنية')">💻 تقنية</button>
+          </div>
+        </div>
+
       </div>
 
       <div class="works-grid" id="works-grid">
@@ -5961,7 +6140,7 @@ footer a:hover{text-decoration:underline;}
           </div>
         </div>
         <div class="fg">
-          <label class="opt">📄 رفع PDF جديد (حتى 10MB)</label>
+          <label class="opt">📄 رفع PDF جديد (حتى 50MB)</label>
           <div class="uz"><input type="file" id="ew-pdf" accept=".pdf" onchange="showEwPdfName(this)">
             <div class="uzi">📄</div><h4>انقر لاختيار PDF جديد</h4><p id="ew-pdf-lbl" style="color:#f87171">اتركه فارغاً للإبقاء على الحالي</p>
           </div>
@@ -6669,6 +6848,63 @@ function renderProfileBadges(earnedIds){
   }).join("") + (allEarned.length > 8 ? `<div onclick="showPage('achievements')" style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.05);border:1px solid var(--br);border-radius:50%;font-size:.72rem;color:var(--mu);cursor:pointer">+${allEarned.length-8}</div>` : "");
 }
 
+
+
+
+// ── وضع قريباً ──
+window.toggleComingSoon = (val) => {
+  const note = document.getElementById('coming-soon-note');
+  const pdfSection = document.querySelector('#w-pdf-file')?.closest('.fg');
+  const pagesSection = document.querySelector('#w-pages')?.closest('.fg');
+  const divider = document.querySelector('.divider');
+  const isCS = val === 'قريباً';
+  if(note) note.style.display = isCS ? 'block' : 'none';
+  if(pdfSection) pdfSection.style.opacity = isCS ? '.4' : '1';
+  if(pagesSection) pagesSection.style.opacity = isCS ? '.4' : '1';
+  if(divider) divider.style.opacity = isCS ? '.4' : '1';
+};
+
+// ── الفروع المتداخلة ──
+window._activeSubGenre = "all";
+
+window.toggleSubtypes = (e, type) => {
+  e.stopPropagation();
+  const wrapId = 'wrap-' + type.replace(' ', '-');
+  const wrap = document.getElementById(wrapId);
+  if(!wrap) { setTypeTab(e.target.closest('.ttab'), type); return; }
+  const isOpen = wrap.classList.contains('open');
+  // أغلق كل القوائم
+  document.querySelectorAll('.ttab-wrap.open').forEach(w => w.classList.remove('open'));
+  if(!isOpen) wrap.classList.add('open');
+};
+
+window.setSubType = (type, genre) => {
+  // أغلق القائمة
+  document.querySelectorAll('.ttab-wrap.open').forEach(w => w.classList.remove('open'));
+  // تفعيل التبويب الأب
+  document.querySelectorAll('.ttab').forEach(b => b.classList.remove('active'));
+  const wrapId = 'wrap-' + type.replace(' ', '-');
+  const wrap = document.getElementById(wrapId);
+  if(wrap) wrap.querySelector('.ttab').classList.add('active');
+  // تفعيل الـ stab
+  document.querySelectorAll('.stab').forEach(b => b.classList.remove('active'));
+  // تطبيق الفلتر
+  window._filterType = type;
+  window._activeSubGenre = genre;
+  if(genre === 'all'){
+    window._advFilters.genre = 'all';
+  } else {
+    window._advFilters.genre = genre;
+  }
+  applyAdvSearch();
+  // scroll للأعمال
+  document.getElementById('browse-sec')?.scrollIntoView({behavior:'smooth'});
+};
+
+// إغلاق القوائم عند النقر خارجها
+document.addEventListener('click', () => {
+  document.querySelectorAll('.ttab-wrap.open').forEach(w => w.classList.remove('open'));
+});
 
 // ── تحميل إحصائيات من نحن ──
 async function loadAboutStats(){
