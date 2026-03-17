@@ -3,16 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>MangaVerse — منصة المانجا العربية</title>
+<title>حِبْرنا — منصة الإبداع العربي</title>
 <meta name="description" content="منصة المانجا والإبداع العربي — اقرأ وانشر وشارك أعمالك">
-<meta property="og:site_name" content="MangaVerse">
+<meta property="og:site_name" content="حِبْرنا">
 <meta property="og:type" content="website">
-<meta id="og-title" property="og:title" content="MangaVerse — منصة المانجا العربية">
-<meta id="og-desc" property="og:description" content="عالم المانجا والروايات في مكان واحد! آلاف الأعمال من مبدعين عرب — اقرأ وانشر مجاناً">
+<meta id="og-title" property="og:title" content="حِبْرنا — منصة الإبداع العربي">
+<meta id="og-desc" property="og:description" content="حِبْرنا — حيث يتحول الحبر إلى عوالم. مانجا، روايات، ويبتون عربي أصيل">
 <meta id="og-image" property="og:image" content="https://raw.githubusercontent.com/younesouakka900-droid/%D8%B9%D8%A7%D9%84%D9%85-%D8%A7%D9%84%D9%85%D8%A7%D9%86%D8%AC%D8%A7/main/og-image.jpg">
-<meta id="og-url" property="og:url" content="https://mangaverse-one-lac.vercel.app">
+<meta id="og-url" property="og:url" content="https://hibrna.vercel.app">
 <meta name="twitter:card" content="summary_large_image">
-<meta id="tw-title" name="twitter:title" content="MangaVerse">
+<meta id="tw-title" name="twitter:title" content="حِبْرنا">
 <meta id="tw-image" name="twitter:image" content="https://raw.githubusercontent.com/younesouakka900-droid/%D8%B9%D8%A7%D9%84%D9%85-%D8%A7%D9%84%D9%85%D8%A7%D9%86%D8%AC%D8%A7/main/og-image.jpg">
 <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&family=Bebas+Neue&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
 
@@ -27,8 +27,8 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, addDoc, updateDoc, deleteDo
 
 // مرجع إلغاء الاشتراك في onSnapshot
 
-const FB = { apiKey:"AIzaSyAzRxV19fXvYjY_3LSmW2LVnIYrCbkaVOk", authDomain:"mangaverse-69f6b.firebaseapp.com",
-  projectId:"mangaverse-69f6b", storageBucket:"mangaverse-69f6b.firebasestorage.app",
+const FB = { apiKey:"AIzaSyAzRxV19fXvYjY_3LSmW2LVnIYrCbkaVOk", authDomain:"hibrna-app.firebaseapp.com",
+  projectId:"hibrna-app", storageBucket:"hibrna-app.firebasestorage.app",
   messagingSenderId:"1019528073160", appId:"1:1019528073160:web:0afcb6826997ced3fdbafd" };
 const app  = initializeApp(FB);
 const auth = getAuth(app);
@@ -209,7 +209,7 @@ window.doRegister=async()=>{
     await updateProfile(cr.user,{displayName:name});
     await setDoc(doc(db,"users",cr.user.uid),{
       name,email,username:"@"+name.toLowerCase().replace(/\s+/g,"_"),
-      bio:"مبدع جديد في MangaVerse 🎨",location:"",
+      bio:"مبدع جديد في حِبْرنا 🎨",location:"",
       avatarUrl:"",coverUrl:"",verified:false,
       emailVerified:false,
       followers:[],following:[],bookmarks:[],
@@ -282,7 +282,7 @@ window.doGoogleLogin = async () => {
         name: user.displayName||"مستخدم جوجل",
         email: user.email,
         username: "@"+(user.displayName||"user").toLowerCase().replace(/\s+/g,"_"),
-        bio:"مبدع جديد في MangaVerse 🎨",location:"",
+        bio:"مبدع جديد في حِبْرنا 🎨",location:"",
         avatarUrl: user.photoURL||"",
         coverUrl:"",verified:false,emailVerified:true,
         followers:[],following:[],bookmarks:[],
@@ -647,7 +647,7 @@ window.loadHeroSlider=async()=>{
   // ── صورة واحدة ثابتة فقط ──
   const PROMO_IMG = "https://ahmnycfbfonmztxmwqdi.supabase.co/storage/v1/object/public/pdfs/uploads/og-image.jpg";
   wrap.innerHTML = `<div class="hslide active" style="padding:0;overflow:hidden;height:100%;">
-    <img src="${PROMO_IMG}" alt="MangaVerse" style="width:100%;height:100%;object-fit:cover;object-position:center;display:block;">
+    <img src="${PROMO_IMG}" alt="حِبْرنا" style="width:100%;height:100%;object-fit:cover;object-position:center;display:block;">
   </div>`;
   const dots=G("slider-dots"); if(dots) dots.innerHTML="";
   return;
@@ -662,7 +662,7 @@ window.loadHeroSlider=async()=>{
 
     // الشريحة الترويجية الثابتة
     const PROMO_IMG = "https://ahmnycfbfonmztxmwqdi.supabase.co/storage/v1/object/public/pdfs/uploads/og-image.jpg";
-    const promoSlide = `<div class="hslide active" style="cursor:default;padding:0;overflow:hidden;"><img src="${PROMO_IMG}" alt="MangaVerse" style="width:100%;height:100%;object-fit:cover;object-position:center;display:block;"></div>`;
+    const promoSlide = `<div class="hslide active" style="cursor:default;padding:0;overflow:hidden;"><img src="${PROMO_IMG}" alt="حِبْرنا" style="width:100%;height:100%;object-fit:cover;object-position:center;display:block;"></div>`;
 
     const workSlides = slides.map(w=>`
       <div class="hslide" data-id="${w.id}"
@@ -962,11 +962,11 @@ window.openWork=async id=>{
   const _workUrl=location.origin+location.pathname+'#/work/'+id;
   try{ history.pushState({workId:id},'',_workUrl); }catch(_){}
   // تحديث عنوان الصفحة
-  document.title=`${w.title} — MangaVerse`;
+  document.title=`${w.title} — حِبْرنا`;
   // تحديث OG meta — اسم مختلف للمعامل لتجنب التعارض مع id
   const _setMeta=(metaId,v)=>{const el=document.getElementById(metaId);if(el)el.setAttribute('content',v);};
-  _setMeta('og-title', w.title+' — MangaVerse');
-  _setMeta('og-desc', w.desc||'اقرأ هذا العمل على MangaVerse');
+  _setMeta('og-title', w.title+' — حِبْرنا');
+  _setMeta('og-desc', w.desc||'اقرأ هذا العمل على حِبْرنا');
   _setMeta('og-image', w.coverUrl||'');
   _setMeta('og-url', _workUrl);
   _setMeta('tw-title', w.title);
@@ -984,14 +984,14 @@ window.openWork=async id=>{
 // ─── دوال المشاركة ───
 window.shareOnWhatsapp = () => {
   const url   = encodeURIComponent(window._shareWorkUrl || location.href);
-  const text  = encodeURIComponent(`📖 اقرأ «${window._shareWorkTitle||"هذا العمل"}» على MangaVerse
+  const text  = encodeURIComponent(`📖 اقرأ «${window._shareWorkTitle||"هذا العمل"}» على حِبْرنا
 `);
   window.open(`https://wa.me/?text=${text}${url}`, "_blank");
 };
 
 window.shareOnTwitter = () => {
   const url  = encodeURIComponent(window._shareWorkUrl || location.href);
-  const text = encodeURIComponent(`📖 اقرأ «${window._shareWorkTitle||""}» على MangaVerse 🎨`);
+  const text = encodeURIComponent(`📖 اقرأ «${window._shareWorkTitle||""}» على حِبْرنا 🎨`);
   window.open(`https://twitter.com/intent/tweet?text=${text}&url=${url}`, "_blank");
 };
 
@@ -2042,10 +2042,10 @@ window.requestPushPermission = async () => {
     toast("✅ تم تفعيل إشعارات الجوال!");
     _updatePushBtn();
     // إشعار ترحيبي
-    new Notification("MangaVerse 🎨", {
+    new Notification("حِبْرنا 🖋️", {
       body: "ستصلك الإشعارات الآن فوراً!",
-      icon: "https://res.cloudinary.com/ddsfdyjek/image/upload/w_64,h_64,c_fill/mangaverse_logo",
-      badge: "https://res.cloudinary.com/ddsfdyjek/image/upload/w_32,h_32,c_fill/mangaverse_logo"
+      icon: "https://res.cloudinary.com/ddsfdyjek/image/upload/w_64,h_64,c_fill/hibr_logo",
+      badge: "https://res.cloudinary.com/ddsfdyjek/image/upload/w_32,h_32,c_fill/hibr_logo"
     });
   } else {
     toast("⚠️ لم يتم منح الإذن — يمكنك تفعيله من إعدادات المتصفح","w");
@@ -2075,8 +2075,8 @@ function _sendBrowserNotif(title, body, icon){
   try {
     const n = new Notification(title, {
       body,
-      icon: icon || "https://res.cloudinary.com/ddsfdyjek/image/upload/w_64,h_64,c_fill/mangaverse_logo",
-      badge:"https://res.cloudinary.com/ddsfdyjek/image/upload/w_32,h_32,c_fill/mangaverse_logo",
+      icon: icon || "https://res.cloudinary.com/ddsfdyjek/image/upload/w_64,h_64,c_fill/hibr_logo",
+      badge:"https://res.cloudinary.com/ddsfdyjek/image/upload/w_32,h_32,c_fill/hibr_logo",
       dir: "rtl", lang: "ar"
     });
     n.onclick = () => { window.focus(); n.close(); };
@@ -2112,7 +2112,7 @@ window.startNotifListener = () => {
           const n = change.doc.data();
           if(!n.read && n.fromName){
             _sendBrowserNotif(
-              `MangaVerse — ${n.fromName}`,
+              `حِبْرنا — ${n.fromName}`,
               n.msg || "إشعار جديد",
             );
           }
@@ -2783,7 +2783,7 @@ window.loadWorksAdvanced = async (searchQ, filters) => {
 
 window.addEventListener("load",()=>{
   // استعادة وضع السمة من localStorage
-  if(localStorage.getItem("mangaverse_theme")==="light"){
+  if(localStorage.getItem("hibr_theme")==="light"){
     document.body.classList.add("light-mode");
     const btn=G("theme-toggle-btn"); if(btn) btn.textContent="☀️";
   }
@@ -2832,7 +2832,7 @@ window.setThemeMode = (mode) => {
   document.body.classList.toggle("light-mode", isLight);
   const btn = G("theme-toggle-btn");
   if(btn) btn.textContent = isLight ? "☀️" : "🌙";
-  localStorage.setItem("mangaverse_theme", mode);
+  localStorage.setItem("hibr_theme", mode);
   G("cust-dark-btn")?.classList.toggle("active", !isLight);
   G("cust-light-btn")?.classList.toggle("active", isLight);
 };
@@ -2849,7 +2849,7 @@ window.resetCustomize = () => {
   document.body.classList.remove("light-mode");
   const btn = G("theme-toggle-btn"); if(btn) btn.textContent = "🌙";
   // مسح localStorage
-  ["mv_accent","mv_fontsize","mv_cardstyle","mangaverse_theme"].forEach(k => localStorage.removeItem(k));
+  ["mv_accent","mv_fontsize","mv_cardstyle","hibr_theme"].forEach(k => localStorage.removeItem(k));
   // تحديث الـ chips
   G("cust-colors").querySelectorAll(".cust-color").forEach((b,i) => b.classList.toggle("active", i===0));
   G("m-customize").querySelectorAll(".achip[data-size]").forEach((b) => b.classList.toggle("active", b.dataset.size==="16"));
@@ -2903,7 +2903,7 @@ window.toggleTheme=()=>{
   const isLight=document.body.classList.toggle("light-mode");
   const btn=G("theme-toggle-btn");
   if(btn) btn.textContent=isLight?"☀️":"🌙";
-  localStorage.setItem("mangaverse_theme", isLight?"light":"dark");
+  localStorage.setItem("hibr_theme", isLight?"light":"dark");
 };
 
 // ─── HELPERS ───
@@ -3110,7 +3110,7 @@ async function awardFirstRegBadge(uid){
       const badges = snap.data().badges||[];
       if(!badges.includes("first_reg")){
         await setDoc(doc(db,"users",uid),{ badges:[...badges,"first_reg"] },{ merge:true });
-        setTimeout(()=>showBadgeNotify({ icon:"🎉", name:"مرحباً بك!", desc:"أنشأت حسابك في MangaVerse" }),2000);
+        setTimeout(()=>showBadgeNotify({ icon:"🎉", name:"مرحباً بك!", desc:"أنشأت حسابك في حِبْرنا" }),2000);
       }
     }
   }catch(e){}
@@ -4314,463 +4314,8 @@ body.light-mode .social-input-wrap{background:rgba(0,0,0,.03);}
 .p-stat .sn{font-size:1.3rem;font-weight:900;}
 .p-stat.active .sn{color:var(--red);}
 .p-stat .sl{font-size:.68rem;color:var(--mu);}
-
-/* LIBRARY PAGE */
-.lib-page{max-width:1100px;margin:0 auto;padding:4rem 2rem;}
-
-/* READER */
-#reader-page{display:none;position:fixed;inset:0;background:#000;z-index:9999;flex-direction:column;overflow:hidden;}
-.reader-nav{height:56px;background:rgba(8,8,15,.95);border-bottom:1px solid var(--br);display:flex;align-items:center;justify-content:space-between;padding:0 1.5rem;flex-shrink:0;}
-.reader-nav h3{font-size:1rem;font-weight:700;}
-.reader-close{background:var(--red);border:none;color:#fff;width:36px;height:36px;border-radius:8px;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center;}
-#reader-content{flex:1;overflow-y:auto;display:flex;flex-direction:column;align-items:center;gap:0;padding:0;background:#111;}
-.reader-img{width:100%;max-width:800px;display:block;user-select:none;-webkit-user-drag:none;}
-.reader-img::selection{background:transparent;}
-/* شريط التقدم */
-#reader-page{position:relative;}
-/* زر الاستئناف — hover effect */
-#reader-resume-btn:hover{border-color:var(--red);background:rgba(8,8,15,1);}
-
-/* MODALS */
-.mo{position:fixed;inset:0;background:rgba(0,0,0,.88);backdrop-filter:blur(12px);z-index:9000;display:none;align-items:center;justify-content:center;padding:1rem;}
-.mo.open{display:flex;}
-.md{background:var(--s1);border:1px solid rgba(255,255,255,.07);border-radius:20px;width:100%;max-width:500px;max-height:90vh;overflow-y:auto;padding:2.5rem;animation:pop .35s cubic-bezier(.34,1.56,.64,1);}
-.md.wide{max-width:720px;}
-@keyframes pop{from{opacity:0;transform:scale(.88) translateY(20px)}to{opacity:1;transform:scale(1) translateY(0)}}
-.mh{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;}
-.mh h2{font-size:1.5rem;font-weight:900;}
-.mclose{width:32px;height:32px;border-radius:50%;border:1px solid var(--br);background:transparent;color:var(--mu);cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;transition:all .3s;}
-.mclose:hover{background:var(--red);border-color:var(--red);color:#fff;}
-.mtabs{display:flex;background:rgba(255,255,255,.04);border-radius:8px;padding:4px;margin-bottom:1.5rem;}
-.mtab{flex:1;padding:.65rem;border-radius:6px;border:none;font-family:'Tajawal';font-size:.9rem;font-weight:700;background:transparent;color:var(--mu);cursor:pointer;transition:all .3s;}
-.mtab.active{background:var(--red);color:#fff;}
-.mform{display:none;}.mform.active{display:block;}
-.mi{width:100%;padding:.78rem 1rem;background:rgba(255,255,255,.04);border:1px solid var(--br);border-radius:8px;color:var(--w);font-family:'Tajawal';font-size:.93rem;outline:none;transition:border-color .3s;margin-bottom:1rem;}
-.mi:focus{border-color:var(--red);}
-textarea.mi{resize:none;}
-.msub{width:100%;padding:.9rem;background:var(--red);color:#fff;border:none;border-radius:10px;font-family:'Tajawal';font-size:1rem;font-weight:800;cursor:pointer;transition:all .3s;box-shadow:0 0 20px var(--rg);}
-.msub:hover{transform:translateY(-2px);}
-.msub:disabled{opacity:.5;cursor:not-allowed;transform:none;}
-.fg{margin-bottom:1.2rem;}
-.fg label{display:block;font-size:.81rem;font-weight:700;color:var(--mu);margin-bottom:.4rem;}
-.fg label.opt::after{content:" (اختياري)";color:rgba(255,255,255,.2);font-weight:400;}
-.fc{width:100%;padding:.73rem 1rem;background:rgba(255,255,255,.04);border:1px solid var(--br);border-radius:8px;color:var(--w);font-family:'Tajawal';font-size:.88rem;outline:none;transition:border-color .3s;}
-.fc:focus{border-color:var(--red);}
-.fc option{background:#1a1a2e;}
-textarea.fc{resize:none;}
-.form-2col{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;}
-.uz{border:2px dashed rgba(232,25,44,.35);border-radius:10px;padding:1.5rem;text-align:center;cursor:pointer;transition:all .3s;position:relative;display:flex;flex-direction:column;align-items:center;gap:.5rem;}
-.uz:hover{border-color:var(--red);background:rgba(232,25,44,.04);}
-.uz input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
-.uzi{font-size:2rem;opacity:.5;}
-.uz h4{font-size:.87rem;font-weight:700;}
-.uz p{font-size:.73rem;color:var(--mu);}
-.cover-prev-wrap{margin-top:.6rem;border-radius:8px;overflow:hidden;max-height:160px;display:none;}
-.cover-prev-wrap img{width:100%;height:160px;object-fit:cover;}
-.divider{display:flex;align-items:center;gap:1rem;margin:.8rem 0;}
-.divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--br);}
-.divider span{font-size:.76rem;color:var(--mu);}
-.sbtn{width:100%;padding:.9rem;background:var(--red);color:#fff;border:none;border-radius:10px;font-family:'Tajawal';font-size:1rem;font-weight:800;cursor:pointer;transition:all .3s;box-shadow:0 0 20px var(--rg);margin-top:.5rem;}
-.sbtn:hover{transform:translateY(-2px);}
-.sbtn:disabled{opacity:.5;cursor:not-allowed;transform:none;}
-.section-divider{border:none;border-top:1px solid var(--br);margin:1rem 0;}
-
-/* PUBLIC PROFILE MODAL */
-#m-public-profile .md{padding:0;overflow:hidden;}
-#pp-cover{transition:background .3s;}
-#pp-av{box-shadow:0 4px 20px rgba(0,0,0,.5);}
-.pp-follow-active{background:rgba(34,197,94,.12)!important;border-color:rgba(34,197,94,.4)!important;color:var(--green)!important;}
-
-/* WORK MODAL */
-.wm-body{display:grid;grid-template-columns:190px 1fr;gap:2rem;}
-#wm-cover{width:190px;aspect-ratio:2/3;border-radius:12px;overflow:hidden;flex-shrink:0;background:var(--s2);}
-.wm-title-big{font-size:1.5rem;font-weight:900;margin-bottom:.3rem;}
-.wm-meta-line{color:var(--mu);font-size:.84rem;margin-bottom:.8rem;display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;}
-.wm-share-btn{background:rgba(255,255,255,.06);border:1px solid var(--br);color:var(--mu);padding:.3rem .8rem;border-radius:20px;font-size:.78rem;cursor:pointer;font-family:'Tajawal';transition:all .2s;display:inline-flex;align-items:center;gap:.3rem;margin-bottom:.4rem;}
-.wm-share-btn:hover{background:rgba(232,25,44,.12);border-color:var(--red);color:var(--red);}
-.wm-desc-box{background:rgba(255,255,255,.03);border:1px solid var(--br);border-radius:8px;padding:1rem;color:var(--mu);font-size:.87rem;line-height:1.8;margin-bottom:1rem;max-height:90px;overflow-y:auto;}
-.stars-row{display:flex;gap:.3rem;margin-bottom:.4rem;align-items:center;flex-wrap:wrap;}
-.star{font-size:1.4rem;cursor:pointer;transition:transform .2s;user-select:none;}
-.star:hover{transform:scale(1.2);}
-.star.active{filter:drop-shadow(0 0 4px var(--gold));}
-.avg-lbl{font-size:.78rem;color:var(--mu);}
-.wm-actions{display:flex;gap:.6rem;flex-wrap:wrap;margin-top:1rem;}
-.wa-btn{padding:.6rem 1.1rem;border-radius:8px;font-family:'Tajawal';font-size:.85rem;font-weight:700;cursor:pointer;border:none;transition:all .3s;text-decoration:none;display:inline-flex;align-items:center;gap:.4rem;}
-.wa-read{background:var(--red);color:#fff;box-shadow:0 0 14px var(--rg);}
-.wa-read:hover{transform:translateY(-2px);}
-.wa-follow{background:transparent;border:1.5px solid var(--br);color:var(--mu);}
-.wa-follow:hover{border-color:var(--red);color:var(--red);}
-.wa-bk{background:rgba(245,166,35,.1);border:1.5px solid rgba(245,166,35,.3);color:var(--gold);}
-.wa-bk.bk-act{background:var(--gold);color:#000;}
-.wa-support{background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff;}
-.wa-audio{background:linear-gradient(135deg,#8b5cf6,#6d28d9);color:#fff;}
-.wa-trailer{background:linear-gradient(135deg,#ef4444,#b91c1c);color:#fff;}
-.wm-comments-section h4{font-size:.93rem;font-weight:800;margin-bottom:1rem;}
-.comments-box{max-height:160px;overflow-y:auto;display:flex;flex-direction:column;gap:.7rem;margin-bottom:.8rem;}
-.comment-item{display:flex;gap:.6rem;align-items:flex-start;}
-.comment-av{width:28px;height:28px;border-radius:50%;background:var(--red);display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:800;flex-shrink:0;}
-.comment-name{font-size:.73rem;font-weight:700;color:var(--red);margin-bottom:2px;}
-.comment-txt{font-size:.82rem;color:var(--mu);line-height:1.5;}
-.comment-row{display:flex;gap:.6rem;}
-.comment-row input{flex:1;background:rgba(255,255,255,.04);border:1px solid var(--br);border-radius:8px;color:var(--w);font-family:'Tajawal';font-size:.87rem;padding:.58rem .9rem;outline:none;transition:border-color .3s;}
-.comment-row input:focus{border-color:var(--red);}
-.comment-send{background:var(--red);border:none;color:#fff;border-radius:8px;padding:.58rem 1rem;font-family:'Tajawal';font-size:.87rem;font-weight:700;cursor:pointer;}
-
-/* TOAST */
-.toast{position:fixed;bottom:2rem;left:50%;transform:translateX(-50%) translateY(80px);background:var(--s2);border:1px solid rgba(232,25,44,.3);border-radius:12px;padding:.82rem 1.8rem;z-index:99999;transition:transform .4s cubic-bezier(.34,1.56,.64,1);font-size:.9rem;font-weight:600;box-shadow:0 10px 40px rgba(0,0,0,.5);white-space:nowrap;max-width:90vw;}
-.toast.show{transform:translateX(-50%) translateY(0);}
-.toast.w{border-color:rgba(245,166,35,.5);}
-.toast.e{border-color:rgba(232,25,44,.9);}
-
-footer{background:#050508;border-top:1px solid var(--br);padding:2rem;text-align:center;color:rgba(255,255,255,.18);font-size:.82rem;}
-footer a{color:var(--gold);text-decoration:none;font-weight:700;}
-footer a:hover{text-decoration:underline;}
-
-@media(max-width:850px){
-  .wm-body{grid-template-columns:1fr;}
-  #wm-cover{width:100%;max-width:180px;margin:0 auto;}
-  .form-2col{grid-template-columns:1fr;}
-  .nav-links{display:none;}
-  .p-cover{height:200px;}
-  .p-av-ring{width:95px;height:95px;padding:3px;}
-  .p-head{margin-top:-45px;}
-  .hero-slider-wrap{height:420px;}
-  .stats-row{grid-template-columns:1fr 1fr;}
-}
-
-/* ── فصل واضح بين الصورة والإطار ── */
-.p-av-ring::before{
-  content:"";
-  position:absolute;
-  inset:-3px;
-  border-radius:50%;
-  z-index:-1;
-}
-.p-av-ring.ring-warrior::before{ box-shadow:0 0 0 3px #FF6B35; }
-.p-av-ring.ring-elite::before{   box-shadow:0 0 0 3px #00D4FF; }
-.p-av-ring.ring-hero::before{    box-shadow:0 0 0 3px #9B30FF; }
-.p-av-ring.ring-legend::before{  box-shadow:0 0 0 3px #FF6B00; }
-.p-av-ring.ring-immortal::before{box-shadow:0 0 0 3px #FF4500; }
-.p-av-ring.ring-myth::before{    box-shadow:0 0 0 3px #FFD700; }
-.p-av-ring.ring-god::before{     box-shadow:0 0 0 3px #FF0080; }
-.p-av-ring.ring-student::before{ box-shadow:0 0 0 3px #00BCD4; }
-.p-av-ring.ring-reader::before{  box-shadow:0 0 0 3px #C0C0C0; }
-.p-av-ring.ring-new::before{     box-shadow:0 0 0 3px #4CAF50; }
-
-
-/* ══ ANIME PAGE ══ */
-.anime-hero{background:linear-gradient(135deg,#0a001a 0%,#1a0030 40%,#0d0d1a 100%);border-bottom:1px solid rgba(155,48,255,.2);padding:3rem 0 2rem;text-align:center;position:relative;overflow:hidden;}
-.anime-hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 0%,rgba(155,48,255,.15) 0%,transparent 70%);pointer-events:none;}
-.anime-hero h1{font-family:'Bebas Neue',sans-serif;font-size:3.5rem;letter-spacing:3px;background:linear-gradient(135deg,#9B30FF,#FF00FF,#00D4FF);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:.3rem;}
-.anime-hero p{color:rgba(255,255,255,.5);font-size:.95rem;}
-.anime-search-wrap{display:flex;gap:.6rem;max-width:500px;margin:1.5rem auto 0;padding:0 1rem;}
-.anime-search-wrap input{flex:1;background:rgba(255,255,255,.06);border:1.5px solid rgba(155,48,255,.3);border-radius:10px;color:#fff;font-family:'Tajawal';font-size:.95rem;padding:.75rem 1rem;outline:none;transition:border-color .3s;}
-.anime-search-wrap input:focus{border-color:#9B30FF;}
-.anime-search-wrap button{background:linear-gradient(135deg,#9B30FF,#6d00cc);border:none;color:#fff;border-radius:10px;padding:.75rem 1.3rem;font-family:'Tajawal';font-size:.9rem;font-weight:700;cursor:pointer;transition:opacity .2s;white-space:nowrap;}
-.anime-tabs{display:flex;gap:.5rem;padding:.5rem 1rem;overflow-x:auto;scrollbar-width:none;flex-wrap:wrap;justify-content:center;margin-top:1rem;}
-.anime-tabs::-webkit-scrollbar{display:none;}
-.atab{padding:.5rem 1.1rem;border-radius:20px;border:1.5px solid rgba(155,48,255,.25);background:transparent;color:rgba(255,255,255,.5);font-family:'Tajawal';font-size:.85rem;font-weight:700;cursor:pointer;transition:all .25s;white-space:nowrap;}
-.atab:hover{border-color:#9B30FF;color:#9B30FF;}
-.atab.active{background:linear-gradient(135deg,#9B30FF,#6d00cc);border-color:transparent;color:#fff;box-shadow:0 0 14px rgba(155,48,255,.4);}
-.anime-section{padding:2rem 0;}
-.anime-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:1rem;}
-.anime-card{background:var(--s1);border:1px solid var(--br);border-radius:12px;overflow:hidden;cursor:pointer;transition:all .25s;}
-.anime-card:hover{transform:translateY(-4px);border-color:rgba(155,48,255,.5);box-shadow:0 8px 25px rgba(155,48,255,.2);}
-.anime-card-img-wrap{position:relative;overflow:hidden;}
-.anime-card-img{width:100%;aspect-ratio:2/3;object-fit:cover;display:block;background:var(--s2);}
-.anime-card-score{position:absolute;top:6px;right:6px;background:rgba(0,0,0,.8);color:var(--gold);font-size:.72rem;font-weight:800;padding:.22rem .55rem;border-radius:20px;}
-.anime-card-type{position:absolute;top:6px;left:6px;background:rgba(155,48,255,.85);color:#fff;font-size:.65rem;font-weight:700;padding:.2rem .5rem;border-radius:20px;}
-.anime-card-body{padding:.65rem .7rem;}
-.anime-card-title{font-size:.82rem;font-weight:800;line-height:1.35;margin-bottom:.3rem;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
-.anime-card-meta{font-size:.72rem;color:var(--mu);display:flex;gap:.4rem;flex-wrap:wrap;}
-.anime-load-more{display:block;margin:1.5rem auto 0;background:transparent;border:1.5px solid rgba(155,48,255,.4);color:#9B30FF;font-family:'Tajawal';font-size:.9rem;font-weight:700;padding:.7rem 2rem;border-radius:10px;cursor:pointer;transition:all .25s;}
-.anime-load-more:hover{background:rgba(155,48,255,.1);}
-.anime-skeleton{background:linear-gradient(90deg,var(--s1) 25%,rgba(255,255,255,.04) 50%,var(--s1) 75%);background-size:200% 100%;animation:shimmer 1.4s infinite;border-radius:12px;aspect-ratio:2/3;}
-@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
-#m-anime .md{max-width:680px;}
-.adm-cover{width:100%;height:220px;object-fit:cover;border-radius:10px;margin-bottom:1rem;}
-.adm-title{font-family:'Rajdhani',sans-serif;font-size:1.8rem;font-weight:800;margin-bottom:.3rem;}
-.adm-title-en{font-size:.85rem;color:var(--mu);margin-bottom:.8rem;}
-.adm-badges{display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:.8rem;}
-.adm-badge{padding:.25rem .7rem;border-radius:20px;font-size:.75rem;font-weight:700;}
-.adm-badge-purple{background:rgba(155,48,255,.15);border:1px solid rgba(155,48,255,.4);color:#b06eff;}
-.adm-badge-gold{background:rgba(245,166,35,.12);border:1px solid rgba(245,166,35,.35);color:var(--gold);}
-.adm-badge-green{background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3);color:#4ade80;}
-.adm-badge-red{background:rgba(232,25,44,.1);border:1px solid rgba(232,25,44,.3);color:var(--red);}
-.adm-synopsis{color:rgba(255,255,255,.65);font-size:.88rem;line-height:1.8;margin-bottom:1rem;max-height:120px;overflow-y:auto;}
-.adm-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:.6rem;margin-bottom:1rem;}
-.adm-stat{background:rgba(255,255,255,.03);border:1px solid var(--br);border-radius:8px;padding:.6rem;text-align:center;}
-.adm-stat .n{font-size:1.1rem;font-weight:900;color:#9B30FF;}
-.adm-stat .l{font-size:.7rem;color:var(--mu);margin-top:.1rem;}
-.adm-genres{display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:1rem;}
-.adm-genre-tag{background:rgba(255,255,255,.05);border:1px solid var(--br);border-radius:20px;padding:.22rem .6rem;font-size:.73rem;color:var(--mu);}
-
-/* ══ TERMS MODAL ══ */
-#m-terms .md{max-width:720px;max-height:92vh;padding:0;overflow:hidden;display:flex;flex-direction:column;}
-.terms-modal-head{padding:1.4rem 1.8rem;border-bottom:1px solid var(--br);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
-.terms-modal-head h2{font-size:1.2rem;font-weight:900;}
-.terms-body{flex:1;overflow-y:auto;padding:1.8rem;}
-.terms-toc{background:rgba(255,255,255,.03);border:1px solid var(--br);border-radius:12px;padding:1.2rem 1.5rem;margin-bottom:2rem;}
-.terms-toc h3{font-size:.85rem;font-weight:800;margin-bottom:.7rem;color:var(--mu);}
-.terms-toc ol{padding-right:1.2rem;}
-.terms-toc li{font-size:.82rem;margin-bottom:.35rem;}
-.terms-toc a{color:var(--gold);text-decoration:none;}
-.terms-toc a:hover{text-decoration:underline;}
-.terms-section{margin-bottom:2rem;}
-.terms-section h2{font-size:.98rem;font-weight:900;margin-bottom:.8rem;padding-bottom:.5rem;border-bottom:1px solid var(--br);display:flex;align-items:center;gap:.4rem;}
-.terms-section p{font-size:.85rem;color:rgba(240,240,255,.78);margin-bottom:.7rem;line-height:1.8;}
-.terms-section ul{padding-right:1.3rem;margin-bottom:.7rem;}
-.terms-section ul li{font-size:.85rem;color:rgba(240,240,255,.78);margin-bottom:.45rem;line-height:1.7;}
-.terms-warn{background:rgba(232,25,44,.08);border:1px solid rgba(232,25,44,.25);border-radius:10px;padding:1rem 1.3rem;margin:.8rem 0;}
-.terms-warn p{color:#ff8a95;margin:0;font-size:.83rem;}
-.terms-warn strong{color:var(--red);}
-.terms-gold{background:rgba(245,158,11,.07);border:1px solid rgba(245,158,11,.22);border-radius:10px;padding:1rem 1.3rem;margin:.8rem 0;}
-.terms-gold p{color:#fcd34d;margin:0;font-size:.83rem;}
-.terms-footer{padding:1.2rem 1.8rem;border-top:1px solid var(--br);background:var(--s1);flex-shrink:0;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;}
-.terms-agree-check{display:flex;align-items:center;gap:.6rem;flex:1;cursor:pointer;}
-.terms-agree-check input{accent-color:var(--red);width:17px;height:17px;flex-shrink:0;cursor:pointer;}
-.terms-agree-check span{font-size:.85rem;color:var(--mu);line-height:1.5;}
-.terms-accept-btn{background:var(--red);color:#fff;border:none;border-radius:10px;padding:.7rem 1.6rem;font-family:'Tajawal';font-size:.9rem;font-weight:800;cursor:pointer;transition:all .2s;box-shadow:0 0 16px rgba(232,25,44,.3);white-space:nowrap;}
-.terms-accept-btn:disabled{opacity:.4;cursor:not-allowed;box-shadow:none;}
-.terms-accept-btn:not(:disabled):hover{transform:translateY(-2px);}
-.reg-terms-row{display:flex;align-items:flex-start;gap:.6rem;margin-bottom:1rem;padding:.75rem 1rem;background:rgba(255,255,255,.03);border:1px solid var(--br);border-radius:10px;cursor:pointer;transition:border-color .25s;}
-.reg-terms-row:hover{border-color:rgba(232,25,44,.3);}
-.reg-terms-row input{accent-color:var(--red);width:16px;height:16px;flex-shrink:0;margin-top:2px;cursor:pointer;}
-.reg-terms-row label{font-size:.83rem;color:var(--mu);cursor:pointer;line-height:1.6;}
-.reg-terms-row label a{color:var(--red);font-weight:700;text-decoration:none;}
-
-
-/* ══ LIKE BUTTON ══ */
-.wa-like{background:rgba(232,25,44,.1);border:1px solid rgba(232,25,44,.3);color:var(--red);transition:all .25s;}
-.wa-like.liked{background:var(--red);color:#fff;box-shadow:0 0 14px rgba(232,25,44,.4);}
-.wa-like:active{transform:scale(.92);}
-@keyframes heartPop{0%{transform:scale(1)}50%{transform:scale(1.35)}100%{transform:scale(1)}}
-.wa-like.pop{animation:heartPop .3s ease;}
-
-/* ══ POINTS & BADGES ══ */
-.badge-notify{position:fixed;bottom:5rem;left:50%;transform:translateX(-50%) translateY(80px);
-  background:linear-gradient(135deg,#1a1a2e,#2d1b4e);border:1px solid rgba(155,48,255,.4);
-  border-radius:16px;padding:1rem 1.5rem;z-index:9999;transition:transform .4s cubic-bezier(.34,1.56,.64,1);
-  display:flex;align-items:center;gap:.8rem;pointer-events:none;min-width:220px;}
-.badge-notify.show{transform:translateX(-50%) translateY(0);}
-.badge-notify-icon{font-size:2rem;flex-shrink:0;}
-.badge-notify-text .title{font-size:.88rem;font-weight:800;color:#fff;}
-.badge-notify-text .sub{font-size:.75rem;color:rgba(255,255,255,.5);margin-top:.1rem;}
-
-.pts-pop{position:fixed;pointer-events:none;font-family:'Bebas Neue',sans-serif;font-size:1.3rem;
-  color:#f59e0b;text-shadow:0 0 10px rgba(245,158,11,.6);z-index:9999;
-  animation:ptsFly 1.2s ease forwards;}
-@keyframes ptsFly{0%{opacity:1;transform:translateY(0) scale(1)}100%{opacity:0;transform:translateY(-60px) scale(1.2)}}
-
-.user-level{display:inline-flex;align-items:center;gap:.35rem;background:rgba(155,48,255,.12);
-  border:1px solid rgba(155,48,255,.3);border-radius:20px;padding:.2rem .6rem;font-size:.72rem;font-weight:700;color:#b06eff;}
-.user-badges-row{display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.5rem;}
-.ubadge{padding:.22rem .6rem;border-radius:20px;font-size:.7rem;font-weight:700;
-  background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.25);color:#fcd34d;}
-
-
-
-
-
-
-
-
-
-/* ══ توهج الاسم حسب المستوى ══ */
-.uname-bronze{
-  color:#cd7f32 !important;
-  -webkit-text-fill-color:#cd7f32 !important;
-  text-shadow:0 0 8px rgba(205,127,50,.4);
-  display:inline-block;
-}
-.uname-silver{
-  background:linear-gradient(135deg,#c0c0c0,#e8e8e8,#a0a0a0) !important;
-  -webkit-background-clip:text !important;
-  -webkit-text-fill-color:transparent !important;
-  background-clip:text !important;
-  color:transparent !important;
-  display:inline-block;
-  filter:drop-shadow(0 0 6px rgba(192,192,192,.5));
-}
-.uname-gold{
-  background:linear-gradient(135deg,#f5a623,#f7d060,#e8821a) !important;
-  -webkit-background-clip:text !important;
-  -webkit-text-fill-color:transparent !important;
-  background-clip:text !important;
-  color:transparent !important;
-  filter:drop-shadow(0 0 8px rgba(245,166,35,.6));
-  animation:goldShimmer 3s ease-in-out infinite;
-  display:inline-block;
-}
-@keyframes goldShimmer{
-  0%,100%{filter:drop-shadow(0 0 6px rgba(245,166,35,.5))}
-  50%{filter:drop-shadow(0 0 14px rgba(245,166,35,.9))}
-}
-.uname-diamond{
-  background:linear-gradient(135deg,#667eea,#764ba2,#a78bfa,#60a5fa) !important;
-  background-size:200% 200% !important;
-  -webkit-background-clip:text !important;
-  -webkit-text-fill-color:transparent !important;
-  background-clip:text !important;
-  color:transparent !important;
-  display:inline-block;
-  animation:diamondFlow 3s ease infinite, diamondGlow 2s ease-in-out infinite;
-}
-@keyframes diamondFlow{
-  0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}
-}
-@keyframes diamondGlow{
-  0%,100%{filter:drop-shadow(0 0 8px rgba(167,139,250,.5))}
-  50%{filter:drop-shadow(0 0 18px rgba(96,165,250,.9))}
-}
-.uname-admin{
-  background:linear-gradient(135deg,#e8192c,#ff6b35,#e8192c) !important;
-  background-size:200% 200% !important;
-  -webkit-background-clip:text !important;
-  -webkit-text-fill-color:transparent !important;
-  background-clip:text !important;
-  color:transparent !important;
-  display:inline-block;
-  animation:adminPulse 2s ease infinite;
-}
-@keyframes adminPulse{
-  0%,100%{background-position:0% 50%;filter:drop-shadow(0 0 6px rgba(232,25,44,.5))}
-  50%{background-position:100% 50%;filter:drop-shadow(0 0 16px rgba(232,25,44,.9))}
-}
-
-
-/* ══ رسالة توضيحية الرفع ══ */
-.upload-tip{background:rgba(245,166,35,.07);border:1px solid rgba(245,166,35,.2);
-  border-radius:12px;padding:.7rem 1rem;margin-bottom:1rem;font-size:.78rem;
-  color:rgba(255,255,255,.65);line-height:1.7;}
-.upload-tip strong{color:var(--gold);font-weight:800;}
-.upload-tip-row{display:flex;align-items:flex-start;gap:.5rem;}
-.upload-tip-icon{font-size:1rem;flex-shrink:0;margin-top:.1rem;}
-
-/* ══ بطاقة قريباً ══ */
-.work-card.coming-soon-card{position:relative;overflow:hidden;}
-.work-card.coming-soon-card::before{content:'';position:absolute;inset:0;background:rgba(8,8,15,.5);z-index:1;}
-.cs-badge{position:absolute;top:.6rem;right:.6rem;z-index:2;
-  background:linear-gradient(135deg,var(--red),#ff6b35);
-  color:#fff;font-size:.72rem;font-weight:800;padding:.3rem .7rem;
-  border-radius:20px;letter-spacing:.5px;
-  box-shadow:0 2px 10px rgba(232,25,44,.4);
-  animation:csPulse 2s infinite;}
-@keyframes csPulse{0%,100%{box-shadow:0 2px 10px rgba(232,25,44,.4)}50%{box-shadow:0 2px 20px rgba(232,25,44,.7)}}
-
-/* ══ الفروع المتداخلة ══ */
-.ttab-wrap{position:relative;display:inline-flex;flex-shrink:0;}
-.ttab-arrow{font-size:.65rem;margin-right:.3rem;transition:transform .2s;display:inline-block;}
-.ttab-wrap.open .ttab-arrow{transform:rotate(180deg);}
-.subtypes-dropdown{
-  position:fixed;
-  background:#13131f;border:1px solid rgba(255,255,255,.1);
-  border-radius:16px;padding:.6rem;z-index:99999;
-  display:none;flex-direction:column;gap:.35rem;
-  min-width:160px;
-  box-shadow:0 8px 32px rgba(0,0,0,.8);
-  animation:dropIn .18s ease;
-}
-@keyframes dropIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
-.ttab-wrap.open .subtypes-dropdown{display:flex;}
-.stab{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);
-  color:rgba(255,255,255,.7);border-radius:10px;padding:.45rem .9rem;
-  font-family:'Tajawal';font-size:.82rem;font-weight:600;cursor:pointer;
-  transition:all .2s;text-align:right;white-space:nowrap;}
-.stab:hover{background:rgba(232,25,44,.12);border-color:rgba(232,25,44,.3);color:var(--red);}
-.stab.active{background:rgba(232,25,44,.18);border-color:var(--red);color:var(--red);font-weight:800;}
-.subtypes-divider{height:1px;background:rgba(255,255,255,.07);margin:.2rem 0;}
-body.light-mode .subtypes-dropdown{background:#fff;border-color:rgba(0,0,0,.1);}
-body.light-mode .stab{color:rgba(0,0,0,.6);}
-body.light-mode .stab:hover{color:var(--red);}
-
-/* ══ تحسينات البحث المتقدم ══ */
-.adv-search-bar{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:20px;padding:1.2rem 1.3rem;margin-bottom:1.5rem;transition:border-color .3s;}
-.adv-search-bar:focus-within{border-color:rgba(232,25,44,.35);}
-.adv-search-row{display:flex;gap:.7rem;align-items:center;}
-.adv-search-input-wrap input{width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:12px;color:var(--w);font-family:'Tajawal';font-size:.95rem;padding:.75rem 2.5rem .75rem 1rem;outline:none;transition:all .2s;box-sizing:border-box;}
-.adv-search-input-wrap input:focus{border-color:var(--red);background:rgba(255,255,255,.08);}
-.adv-toggle-btn{background:rgba(232,25,44,.1);border:1px solid rgba(232,25,44,.3);color:var(--red);border-radius:12px;padding:.7rem 1rem;font-family:'Tajawal';font-size:.85rem;cursor:pointer;white-space:nowrap;flex-shrink:0;font-weight:700;transition:all .2s;}
-.adv-toggle-btn:hover,.adv-toggle-btn.open{background:rgba(232,25,44,.2);border-color:var(--red);}
-.adv-filters-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:1rem;}
-.adv-filter-group label{display:block;font-size:.78rem;font-weight:800;color:rgba(255,255,255,.5);margin-bottom:.5rem;text-transform:uppercase;letter-spacing:.5px;}
-.adv-chips{display:flex;flex-wrap:wrap;gap:.4rem;}
-.achip{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.6);border-radius:20px;padding:.3rem .8rem;font-family:'Tajawal';font-size:.78rem;cursor:pointer;transition:all .2s;font-weight:600;}
-.achip:hover{border-color:rgba(232,25,44,.4);color:#fff;}
-.achip.active{background:rgba(232,25,44,.15);border-color:var(--red);color:var(--red);font-weight:800;}
-@media(max-width:480px){
-  .adv-filters-grid{grid-template-columns:1fr;}
-}
-
-/* ══ ABOUT PAGE ══ */
-.about-hero{position:relative;overflow:hidden;padding:4rem 1.5rem 3rem;text-align:center;
-  background:linear-gradient(180deg,#080010 0%,#0d0018 50%,#080010 100%);}
-.about-hero::before{content:'';position:absolute;inset:0;
-  background:radial-gradient(ellipse at 50% 0%,rgba(232,25,44,.12) 0%,transparent 65%);pointer-events:none;}
-.about-hero-title{font-family:'Bebas Neue',sans-serif;font-size:3.5rem;letter-spacing:4px;
-  background:linear-gradient(135deg,#fff,rgba(255,255,255,.6));-webkit-background-clip:text;
-  -webkit-text-fill-color:transparent;background-clip:text;margin-bottom:.3rem;}
-.about-hero-sub{color:rgba(255,255,255,.4);font-size:.95rem;letter-spacing:1px;}
-
-/* بطاقة المؤسس */
-.founder-card{max-width:700px;margin:2.5rem auto;padding:0 1rem;}
-.founder-inner{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);
-  border-radius:24px;padding:2rem;display:flex;gap:2rem;align-items:center;
-  position:relative;overflow:hidden;}
-.founder-inner::before{content:'';position:absolute;top:-40px;right:-40px;width:200px;height:200px;
-  background:radial-gradient(circle,rgba(232,25,44,.08),transparent 70%);pointer-events:none;}
-.founder-img{width:120px;height:120px;border-radius:50%;object-fit:cover;flex-shrink:0;
-  border:3px solid rgba(232,25,44,.4);box-shadow:0 0 20px rgba(232,25,44,.2);}
-.founder-info{}
-.founder-name-ar{font-size:1.4rem;font-weight:900;color:#fff;margin-bottom:.1rem;}
-.founder-name-en{font-size:.85rem;color:rgba(255,255,255,.35);letter-spacing:1px;margin-bottom:.6rem;font-family:'Rajdhani',sans-serif;}
-.founder-role{display:inline-block;background:rgba(232,25,44,.12);border:1px solid rgba(232,25,44,.3);
-  color:var(--red);border-radius:20px;padding:.2rem .8rem;font-size:.75rem;font-weight:700;margin-bottom:.8rem;}
-.founder-bio{font-size:.88rem;color:rgba(255,255,255,.55);line-height:1.8;}
-
-/* أقسام */
-.about-section{max-width:700px;margin:0 auto;padding:1.5rem 1rem;}
-.about-section-title{font-size:1.15rem;font-weight:900;margin-bottom:1rem;display:flex;align-items:center;gap:.5rem;}
-.about-section-title::after{content:'';flex:1;height:1px;background:rgba(255,255,255,.07);}
-
-/* بطاقات القيم */
-.values-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:.8rem;margin-bottom:2rem;}
-.value-card{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);
-  border-radius:16px;padding:1.2rem;transition:border-color .25s;}
-.value-card:hover{border-color:rgba(232,25,44,.25);}
-.value-icon{font-size:1.8rem;margin-bottom:.5rem;}
-.value-name{font-size:.88rem;font-weight:800;margin-bottom:.3rem;}
-.value-desc{font-size:.75rem;color:rgba(255,255,255,.4);line-height:1.6;}
-
-/* إحصائيات */
-.about-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:.8rem;margin-bottom:2rem;}
-.about-stat{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);
-  border-radius:16px;padding:1.2rem;text-align:center;}
-.about-stat .n{font-family:'Bebas Neue',sans-serif;font-size:2rem;color:var(--red);}
-.about-stat .l{font-size:.7rem;color:rgba(255,255,255,.4);margin-top:.2rem;}
-
-/* الرؤية */
-.vision-box{background:linear-gradient(135deg,rgba(232,25,44,.06),rgba(155,48,255,.06));
-  border:1px solid rgba(232,25,44,.15);border-radius:20px;padding:1.8rem;text-align:center;margin-bottom:2rem;}
-.vision-box p{font-size:.95rem;color:rgba(255,255,255,.65);line-height:1.9;}
-
-/* تواصل */
-.contact-box{background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.07);
-  border-radius:20px;padding:1.5rem;text-align:center;margin-bottom:3rem;}
-.contact-box p{color:rgba(255,255,255,.45);font-size:.85rem;margin-bottom:1rem;}
-.contact-btn{display:inline-block;background:var(--red);color:#fff;padding:.7rem 2rem;
-  border-radius:12px;font-weight:700;text-decoration:none;font-size:.9rem;transition:opacity .2s;}
-.contact-btn:hover{opacity:.85;}
-
-@media(max-width:480px){
-  .founder-inner{flex-direction:column;text-align:center;}
-  .values-grid{grid-template-columns:1fr;}
-  .about-stats{grid-template-columns:repeat(3,1fr);}
-  .about-hero-title{font-size:2.5rem;}
-}
-
 /* ════════════════════════════════════════
-   🔥 MANGAVERSE GLOW PACK — SAFE VERSION
+   🔥 HIBR GLOW PACK — SAFE VERSION
    لا تعارض مع z-index أو pointer-events
 ════════════════════════════════════════ */
 
@@ -4995,7 +4540,7 @@ body.light-mode #mv-bg-glow { display: none !important; }
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="MangaVerse">
+<meta name="apple-mobile-web-app-title" content="حِبْرنا">
 <meta name="theme-color" content="#e8192c">
 <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/younesouakka900-droid/%D8%B9%D8%A7%D9%84%D9%85-%D8%A7%D9%84%D9%85%D8%A7%D9%86%D8%AC%D8%A7/main/favicon.png">
 <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/younesouakka900-droid/%D8%B9%D8%A7%D9%84%D9%85-%D8%A7%D9%84%D9%85%D8%A7%D9%86%D8%AC%D8%A7/main/favicon.png">
@@ -5221,7 +4766,7 @@ body.light-mode #mv-bg-glow { display: none !important; }
     <div class="cust-section">
       <div class="cust-label">🎨 اللون الرئيسي</div>
       <div class="cust-colors" id="cust-colors">
-        <button class="cust-color active" data-color="#e8192c" data-rg="rgba(232,25,44,.22)"  style="background:#e8192c" onclick="setAccentColor(this)" title="أحمر MangaVerse"></button>
+        <button class="cust-color active" data-color="#e8192c" data-rg="rgba(232,25,44,.22)"  style="background:#e8192c" onclick="setAccentColor(this)" title="أحمر حِبْرنا"></button>
         <button class="cust-color" data-color="#7c3aed" data-rg="rgba(124,58,237,.22)" style="background:#7c3aed" onclick="setAccentColor(this)" title="بنفسجي"></button>
         <button class="cust-color" data-color="#0ea5e9" data-rg="rgba(14,165,233,.22)" style="background:#0ea5e9" onclick="setAccentColor(this)" title="أزرق"></button>
         <button class="cust-color" data-color="#10b981" data-rg="rgba(16,185,129,.22)" style="background:#10b981" onclick="setAccentColor(this)" title="أخضر"></button>
@@ -5337,7 +4882,7 @@ body.light-mode #mv-bg-glow { display: none !important; }
               • الأبعاد المثالية: <strong>800 × 1200 بكسل</strong> (نسبة 2:3 عمودي)<br>
               • الحجم الأقصى للصور: <strong>5MB</strong><br>
               • الصيغ المدعومة: JPG, PNG, WEBP<br>
-              • سيُضاف لوجو MangaVerse تلقائياً ✦
+              • سيُضاف لوجو حِبْرنا تلقائياً ✦
             </div>
           </div>
         </div>
@@ -5606,13 +5151,13 @@ body.light-mode #mv-bg-glow { display: none !important; }
       </div>
       <div class="terms-section" id="ts1">
         <h2>📜 1. القبول بالشروط</h2>
-        <p>باستخدامك لمنصة MangaVerse أو نشر أي محتوى عليها، فإنك توافق صراحةً على الالتزام بجميع الشروط والأحكام الواردة في هذه الصفحة.</p>
+        <p>باستخدامك لمنصة حِبْرنا أو نشر أي محتوى عليها، فإنك توافق صراحةً على الالتزام بجميع الشروط والأحكام الواردة في هذه الصفحة.</p>
         <p>إذا كنت لا توافق على هذه الشروط، يرجى التوقف عن استخدام المنصة فوراً.</p>
         <div class="terms-gold"><p>⚠️ عند نشر أي عمل على المنصة، تقر صراحةً بأنك اطلعت على هذه الشروط ووافقت عليها بالكامل.</p></div>
       </div>
       <div class="terms-section" id="ts2">
         <h2>🔒 2. حقوق الملكية الفكرية</h2>
-        <p>تحترم منصة MangaVerse حقوق الملكية الفكرية وتلتزم بجميع القوانين والاتفاقيات الدولية المتعلقة بها.</p>
+        <p>تحترم منصة حِبْرنا حقوق الملكية الفكرية وتلتزم بجميع القوانين والاتفاقيات الدولية المتعلقة بها.</p>
         <ul>
           <li>يُسمح فقط بنشر <strong>الأعمال الأصلية</strong> التي أنت صاحبها أو تملك حق نشرها رسمياً.</li>
           <li>يُحظر نشر أي مانجا أو رواية أو محتوى مرئي محمي بحقوق طبع ونشر دون إذن صريح من أصحابها.</li>
@@ -5697,7 +5242,7 @@ body.light-mode #mv-bg-glow { display: none !important; }
   <div class="about-hero">
     <div style="position:relative;z-index:1">
       <div class="about-hero-title">من نحن</div>
-      <div class="about-hero-sub">القصة وراء MangaVerse</div>
+      <div class="about-hero-sub">القصة وراء حِبْرنا</div>
     </div>
   </div>
 
@@ -5710,9 +5255,9 @@ body.light-mode #mv-bg-glow { display: none !important; }
       <div class="founder-info">
         <div class="founder-name-ar">يونس واقا</div>
         <div class="founder-name-en">Younes Ouakka</div>
-        <div class="founder-role">🚀 مؤسس MangaVerse</div>
+        <div class="founder-role">🚀 مؤسس حِبْرنا</div>
         <div class="founder-bio">
-          شغوف بالكتابة والتصميم والاستقلالية — آمن بأن المبدع العربي يستحق مكاناً حقيقياً يعبّر فيه عن نفسه بحرية تامة، بعيداً عن القيود. فكانت MangaVerse ثمرة هذا الحلم.
+          شغوف بالكتابة والتصميم والاستقلالية — آمن بأن المبدع العربي يستحق مكاناً حقيقياً يعبّر فيه عن نفسه بحرية تامة، بعيداً عن القيود. فكانت حِبْرنا ثمرة هذا الحلم.
         </div>
       </div>
     </div>
@@ -5781,7 +5326,7 @@ body.light-mode #mv-bg-glow { display: none !important; }
     <div class="about-section-title">🔭 رؤيتنا</div>
     <div class="vision-box">
       <p>
-        نرى MangaVerse في المستقبل أكبر وأشهر منصة عربية للمانجا والروايات المصورة في العالم العربي —
+        نرى حِبْرنا في المستقبل أكبر وأشهر منصة عربية للمانجا والروايات المصورة في العالم العربي —
         وجهةً لا يمكن لأي مبدع أو قارئ عربي الاستغناء عنها.
         <br><br>
         <span style="color:var(--red);font-weight:800">الحلم كبير، والبداية من هنا. ✦</span>
@@ -5794,7 +5339,7 @@ body.light-mode #mv-bg-glow { display: none !important; }
     <div class="contact-box">
       <div style="font-size:1.5rem;margin-bottom:.5rem">📬</div>
       <div style="font-weight:800;font-size:1rem;margin-bottom:.4rem">تواصل معنا</div>
-      <p>هل لديك اقتراح أو تريد الانضمام إلى فريق MangaVerse؟</p>
+      <p>هل لديك اقتراح أو تريد الانضمام إلى فريق حِبْرنا؟</p>
       <a href="/cdn-cgi/l/email-protection#9ce5f3e9f2fdefeff3e9fdf7f7fddcfbf1fdf5f0b2fff3f1" class="contact-btn">✉️ راسلنا</a>
     </div>
   </div>
@@ -5808,7 +5353,7 @@ body.light-mode #mv-bg-glow { display: none !important; }
 
   <!-- رأس السايدبار -->
   <div class="sb-head">
-    <div class="sb-logo"><div class="hx" style="width:24px;height:24px;font-size:.7rem">M</div>MANGA<span style="color:var(--red)">VERSE</span></div>
+    <div class="sb-logo"><div class="hx" style="width:24px;height:24px;font-size:.7rem">ح</div>حِبْرنا<span style="color:var(--red)"> HIBRNA</span></div>
     <button class="sb-close" onclick="closeSidebar()">✕</button>
   </div>
 
@@ -5856,7 +5401,7 @@ body.light-mode #mv-bg-glow { display: none !important; }
 <!-- NAV -->
 <nav>
   <div id="mv-nav-line" aria-hidden="true"></div>
-  <div class="logo" onclick="showPage('home')"><div class="hx">M</div><span class="logo-text">MANGA<span style="color:var(--red)">VERSE</span></span></div>
+  <div class="logo" onclick="showPage('home')"><div class="hx">ح</div><span class="logo-text">حِبْرنا<span style="color:var(--red);font-family:Tajawal"> HIBRNA</span></span></div>
   <div class="nav-search">
     <input id="search-inp" type="text" placeholder="🔍 ابحث عن مانجا، كتاب، مبدع..." onkeydown="if(event.key==='Enter') doSearch()">
     <button onclick="doSearch()">🔍</button>
@@ -6115,7 +5660,7 @@ body.light-mode #mv-bg-glow { display: none !important; }
   </section>
 
   <footer>
-    <p>© 2025 MangaVerse — صُنع بـ ❤️ للمبدعين العرب | YOUNES OUAKKA</p>
+    <p>© 2025 حِبْرنا — صُنع بـ ❤️ للمبدعين العرب | YOUNES OUAKKA</p>
     <p style="margin-top:.5rem">
       <a href="https://mahbarat-alkhiyal.com" target="_blank">✦ محبرة الخيال — مجتمع المبدعين العرب</a>
     </p>
@@ -6141,7 +5686,7 @@ body.light-mode #mv-bg-glow { display: none !important; }
     <div class="p-cover" onclick="pickCover()">
       <div id="p-cover-bg">
         <div class="cover-grid"></div>
-        <div class="cover-txt">MANGAVERSE</div>
+        <div class="cover-txt">HIBR</div>
       </div>
       <button class="cover-edit-btn" onclick="event.stopPropagation();pickCover()">📷 تغيير صورة الغلاف</button>
     </div>
@@ -6470,7 +6015,7 @@ async function addWatermarkToImage(file) {
       // إعدادات الـ Watermark
       const fontSize = Math.max(16, Math.floor(img.width * 0.045));
       const padding  = Math.floor(img.width * 0.025);
-      const text     = 'MangaVerse';
+      const text     = 'حِبْرنا';
 
       ctx.font = `bold ${fontSize}px "Bebas Neue", "Arial", sans-serif`;
       ctx.textBaseline = 'bottom';
@@ -7063,7 +6608,7 @@ async function awardFirstRegBadge(uid){
       const badges = snap.data().badges||[];
       if(!badges.includes("first_reg")){
         await setDoc(doc(db,"users",uid),{ badges:[...badges,"first_reg"] },{ merge:true });
-        setTimeout(()=>showBadgeNotify({ icon:"🎉", name:"مرحباً بك!", desc:"أنشأت حسابك في MangaVerse" }),2000);
+        setTimeout(()=>showBadgeNotify({ icon:"🎉", name:"مرحباً بك!", desc:"أنشأت حسابك في حِبْرنا" }),2000);
       }
     }
   }catch(e){}
