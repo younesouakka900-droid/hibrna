@@ -4769,527 +4769,226 @@ body.light-mode .stab:hover{color:var(--red);}
   .about-hero-title{font-size:2.5rem;}
 }
 
-/* ════════════════════════════════════════════════════════════
-   🔥 MANGAVERSE — ULTRA GLOW EFFECTS PACK v2.0
-   تأثيرات متوهجة خرافية — يونس وقا
-════════════════════════════════════════════════════════════ */
+/* ════════════════════════════════════════
+   🔥 MANGAVERSE GLOW PACK — SAFE VERSION
+   لا تعارض مع z-index أو pointer-events
+════════════════════════════════════════ */
 
-/* ── 🌌 خلفية كونية متحركة ── */
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  z-index: -2;
-  background:
-    radial-gradient(ellipse 80% 50% at 20% 10%, rgba(232,25,44,.07) 0%, transparent 60%),
-    radial-gradient(ellipse 60% 40% at 80% 80%, rgba(123,47,255,.06) 0%, transparent 60%),
-    radial-gradient(ellipse 50% 60% at 50% 50%, rgba(0,212,255,.03) 0%, transparent 70%);
-  animation: cosmicDrift 20s ease-in-out infinite alternate;
-  pointer-events: none;
-}
-body::after {
-  content: '';
+/* ── 🌌 خلفية هالات كونية (لا تتعارض مع العناصر) ── */
+#mv-bg-glow {
   position: fixed;
   inset: 0;
   z-index: -1;
-  background-image:
-    radial-gradient(1px 1px at 10% 15%, rgba(255,255,255,.18) 0%, transparent 100%),
-    radial-gradient(1px 1px at 25% 35%, rgba(255,255,255,.12) 0%, transparent 100%),
-    radial-gradient(1.5px 1.5px at 40% 20%, rgba(255,255,255,.22) 0%, transparent 100%),
-    radial-gradient(1px 1px at 55% 60%, rgba(255,255,255,.15) 0%, transparent 100%),
-    radial-gradient(1px 1px at 70% 10%, rgba(255,255,255,.20) 0%, transparent 100%),
-    radial-gradient(1.5px 1.5px at 85% 45%, rgba(255,255,255,.14) 0%, transparent 100%),
-    radial-gradient(1px 1px at 92% 75%, rgba(255,255,255,.18) 0%, transparent 100%),
-    radial-gradient(1px 1px at 15% 80%, rgba(255,255,255,.10) 0%, transparent 100%),
-    radial-gradient(1px 1px at 60% 90%, rgba(255,255,255,.13) 0%, transparent 100%),
-    radial-gradient(2px 2px at 35% 55%, rgba(232,25,44,.15) 0%, transparent 100%),
-    radial-gradient(2px 2px at 75% 30%, rgba(123,47,255,.12) 0%, transparent 100%);
-  animation: starsTwinkle 8s ease-in-out infinite alternate;
   pointer-events: none;
+  overflow: hidden;
 }
-@keyframes cosmicDrift {
-  0%   { background-position: 0% 0%, 100% 100%, 50% 50%; }
-  100% { background-position: 30% 20%, 70% 80%, 60% 40%; }
-}
-@keyframes starsTwinkle {
-  0%   { opacity: .6; }
-  50%  { opacity: 1; }
-  100% { opacity: .7; }
-}
-
-/* ── 🔥 NAV — شريط ناري متوهج ── */
-nav {
-  background: rgba(8,8,15,.88) !important;
-  backdrop-filter: blur(20px) saturate(1.5) !important;
-  border-bottom: 1px solid rgba(232,25,44,.25) !important;
-  box-shadow:
-    0 0 0 1px rgba(232,25,44,.08),
-    0 4px 30px rgba(0,0,0,.6),
-    0 1px 0 rgba(232,25,44,.15),
-    inset 0 1px 0 rgba(255,255,255,.04) !important;
-}
-nav::after {
+#mv-bg-glow::before {
   content: '';
+  position: absolute;
+  width: 700px; height: 700px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(232,25,44,.07) 0%, transparent 70%);
+  top: -200px; right: -200px;
+  animation: bgOrb1 18s ease-in-out infinite alternate;
+}
+#mv-bg-glow::after {
+  content: '';
+  position: absolute;
+  width: 600px; height: 600px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(123,47,255,.05) 0%, transparent 70%);
+  bottom: -200px; left: -200px;
+  animation: bgOrb2 22s ease-in-out infinite alternate;
+}
+@keyframes bgOrb1 { 0%{transform:translate(0,0) scale(1)} 100%{transform:translate(-80px,80px) scale(1.3)} }
+@keyframes bgOrb2 { 0%{transform:translate(0,0) scale(1)} 100%{transform:translate(60px,-60px) scale(1.2)} }
+
+/* ── 🔴 شريط NAV ── */
+nav {
+  backdrop-filter: blur(20px) saturate(1.5) !important;
+  border-bottom: 1px solid rgba(232,25,44,.2) !important;
+  box-shadow: 0 1px 0 rgba(232,25,44,.1), 0 4px 24px rgba(0,0,0,.5) !important;
+}
+#mv-nav-line {
   position: absolute;
   bottom: 0; left: 0; right: 0;
   height: 1px;
-  background: linear-gradient(90deg,
-    transparent 0%,
-    rgba(232,25,44,.6) 20%,
-    rgba(255,107,53,.9) 50%,
-    rgba(232,25,44,.6) 80%,
-    transparent 100%);
-  animation: navLineGlow 4s ease-in-out infinite;
+  background: linear-gradient(90deg, transparent 0%, rgba(232,25,44,.7) 30%, rgba(255,107,53,1) 50%, rgba(232,25,44,.7) 70%, transparent 100%);
+  pointer-events: none;
+  animation: navLine 4s ease-in-out infinite;
 }
-@keyframes navLineGlow {
-  0%,100% { opacity: .5; transform: scaleX(.8); }
-  50%     { opacity: 1;  transform: scaleX(1); }
+@keyframes navLine {
+  0%,100% { opacity:.4; } 50% { opacity:1; }
 }
 
-/* ── شعار MangaVerse متوهج ── */
+/* ── شعار ── */
 .logo-text {
-  background: linear-gradient(135deg, #fff 30%, rgba(232,25,44,.9) 70%, #ff6b35 100%) !important;
+  background: linear-gradient(135deg, #fff 40%, #e8192c 100%) !important;
   -webkit-background-clip: text !important;
   -webkit-text-fill-color: transparent !important;
   background-clip: text !important;
-  filter: drop-shadow(0 0 8px rgba(232,25,44,.4));
+  filter: drop-shadow(0 0 8px rgba(232,25,44,.35));
   animation: logoGlow 3s ease-in-out infinite;
 }
 @keyframes logoGlow {
-  0%,100% { filter: drop-shadow(0 0 6px rgba(232,25,44,.3)); }
-  50%     { filter: drop-shadow(0 0 16px rgba(232,25,44,.8)) drop-shadow(0 0 30px rgba(255,107,53,.3)); }
+  0%,100% { filter: drop-shadow(0 0 5px rgba(232,25,44,.3)); }
+  50%     { filter: drop-shadow(0 0 14px rgba(232,25,44,.75)); }
 }
 
-/* ── أزرار NAV متوهجة ── */
+/* ── زر النشر ── */
 .nbtn-pub {
-  background: linear-gradient(135deg, #e8192c, #ff4500, #ff6b35) !important;
-  background-size: 200% 200% !important;
-  box-shadow: 0 0 20px rgba(232,25,44,.5), 0 0 40px rgba(232,25,44,.2) !important;
-  animation: pubBtnGlow 2.5s ease-in-out infinite, pubBtnShift 4s ease infinite !important;
-  border: none !important;
+  background: linear-gradient(135deg, #e8192c 0%, #ff4500 50%, #e8192c 100%) !important;
+  background-size: 200% 100% !important;
+  box-shadow: 0 0 16px rgba(232,25,44,.45) !important;
+  animation: pubGlow 2.5s ease-in-out infinite, pubShift 3s linear infinite !important;
 }
-@keyframes pubBtnGlow {
-  0%,100% { box-shadow: 0 0 15px rgba(232,25,44,.5), 0 0 30px rgba(232,25,44,.2); }
-  50%     { box-shadow: 0 0 30px rgba(232,25,44,.9), 0 0 60px rgba(255,107,53,.4), 0 0 80px rgba(232,25,44,.2); }
-}
-@keyframes pubBtnShift {
-  0%,100% { background-position: 0% 50%; }
-  50%     { background-position: 100% 50%; }
-}
+@keyframes pubGlow  { 0%,100%{box-shadow:0 0 14px rgba(232,25,44,.4)} 50%{box-shadow:0 0 28px rgba(232,25,44,.85),0 0 50px rgba(232,25,44,.25)} }
+@keyframes pubShift { 0%{background-position:0% 0%} 100%{background-position:200% 0%} }
 
-/* ── 🃏 بطاقات الأعمال — توهج احترافي ── */
+/* ── 🃏 بطاقات الأعمال ── */
 .work-card {
-  transition: transform .35s cubic-bezier(.34,1.56,.64,1), box-shadow .35s ease !important;
-  border-radius: 12px !important;
+  transition: transform .3s cubic-bezier(.34,1.56,.64,1), box-shadow .3s ease !important;
 }
 .work-card:hover {
-  transform: translateY(-10px) scale(1.02) !important;
-  box-shadow:
-    0 20px 60px rgba(0,0,0,.7),
-    0 0 20px rgba(232,25,44,.25),
-    0 0 40px rgba(232,25,44,.1) !important;
+  transform: translateY(-8px) scale(1.015) !important;
+  box-shadow: 0 20px 50px rgba(0,0,0,.65), 0 0 18px rgba(232,25,44,.2) !important;
 }
 .work-thumb {
-  border-radius: 12px !important;
-  overflow: hidden !important;
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,.06) !important;
+  position: relative;
 }
 .work-thumb img {
-  transition: transform .5s ease !important;
+  transition: transform .45s ease !important;
 }
 .work-card:hover .work-thumb img {
   transform: scale(1.06) !important;
 }
-.work-thumb::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    to bottom,
-    transparent 0%,
-    transparent 55%,
-    rgba(8,8,15,.3) 75%,
-    rgba(8,8,15,.85) 100%
-  );
-  pointer-events: none;
-  border-radius: 12px;
+.work-card:hover .work-title {
+  color: #fff !important;
 }
 
-/* ── ✨ توهج خاص لبطاقات الترند ── */
-.trending-card {
-  position: relative;
-}
-.trending-card::before {
-  content: '';
-  position: absolute;
-  inset: -1px;
-  border-radius: 13px;
-  background: linear-gradient(135deg,
-    rgba(232,25,44,.0) 0%,
-    rgba(232,25,44,.3) 50%,
-    rgba(255,107,53,.0) 100%);
-  opacity: 0;
-  transition: opacity .3s;
-  z-index: -1;
-}
-.trending-card:hover::before {
-  opacity: 1;
-}
-
-/* ── 📛 شارة النوع متوهجة ── */
+/* ── ✨ شارة النوع ── */
 .work-badge {
-  background: rgba(8,8,15,.95) !important;
-  border: 1px solid rgba(245,166,35,.5) !important;
-  color: var(--gold) !important;
-  box-shadow: 0 0 8px rgba(245,166,35,.2), inset 0 0 6px rgba(245,166,35,.05) !important;
-  text-shadow: 0 0 6px rgba(245,166,35,.4) !important;
-  backdrop-filter: blur(4px) !important;
+  box-shadow: 0 0 6px rgba(245,166,35,.2), inset 0 0 4px rgba(245,166,35,.05) !important;
 }
 
 /* ── زر قراءة ── */
 .work-read-btn {
-  background: linear-gradient(135deg, var(--red), #ff4500) !important;
-  box-shadow: 0 0 12px rgba(232,25,44,.5) !important;
-  border-radius: 7px !important;
-  transition: all .2s !important;
-}
-.work-read-btn:hover {
-  box-shadow: 0 0 20px rgba(232,25,44,.8) !important;
-  transform: scale(1.03) !important;
-}
-
-/* ── 🌟 القسم العناوين — توهج نصي ── */
-.stitle {
-  text-shadow: 0 0 30px rgba(255,255,255,.08);
-}
-.stag {
-  text-shadow: 0 0 12px rgba(232,25,44,.5);
-  letter-spacing: 4px;
-}
-
-/* ── 📜 MANIFESTO — توهج أسطوري ── */
-.manifesto {
-  background: linear-gradient(
-    135deg,
-    rgba(232,25,44,.05) 0%,
-    rgba(123,47,255,.03) 50%,
-    rgba(232,25,44,.05) 100%
-  ) !important;
-  border-top: 1px solid rgba(232,25,44,.2) !important;
-  border-bottom: 1px solid rgba(232,25,44,.2) !important;
-  position: relative;
-  overflow: hidden;
-}
-.manifesto::before {
-  content: '';
-  position: absolute;
-  top: 50%; left: 50%;
-  transform: translate(-50%,-50%);
-  width: 600px; height: 200px;
-  background: radial-gradient(ellipse, rgba(232,25,44,.06) 0%, transparent 70%);
-  animation: manifestoGlow 5s ease-in-out infinite alternate;
-  pointer-events: none;
-}
-@keyframes manifestoGlow {
-  0%   { transform: translate(-60%,-50%) scale(.8); }
-  100% { transform: translate(-40%,-50%) scale(1.2); }
-}
-.manifesto-text {
-  position: relative;
-  z-index: 1;
-}
-.manifesto-text em {
-  text-shadow: 0 0 20px rgba(232,25,44,.6), 0 0 40px rgba(232,25,44,.3) !important;
-}
-
-/* ── 🔍 شريط البحث ── */
-.adv-search-input-wrap input {
-  border: 1px solid rgba(255,255,255,.12) !important;
-  background: rgba(255,255,255,.04) !important;
-  transition: all .3s !important;
-}
-.adv-search-input-wrap input:focus {
-  border-color: var(--red) !important;
-  background: rgba(232,25,44,.05) !important;
-  box-shadow: 0 0 0 3px rgba(232,25,44,.12), 0 0 20px rgba(232,25,44,.1) !important;
-}
-
-/* ── 📌 تبويبات النوع ── */
-.ttab {
-  backdrop-filter: blur(8px) !important;
-  transition: all .25s !important;
-}
-.ttab.active {
-  background: linear-gradient(135deg, var(--red), #ff4500) !important;
-  box-shadow: 0 0 20px rgba(232,25,44,.5), 0 4px 14px rgba(232,25,44,.3) !important;
-  border-color: transparent !important;
-  text-shadow: 0 0 8px rgba(255,255,255,.3) !important;
-}
-.ttab:hover:not(.active) {
-  box-shadow: 0 0 12px rgba(232,25,44,.2) !important;
+  background: linear-gradient(135deg, #e8192c, #ff4500) !important;
+  box-shadow: 0 0 10px rgba(232,25,44,.4) !important;
 }
 
 /* ── 🏆 صف المبدعين ── */
 .creator-row {
-  transition: all .3s !important;
+  transition: background .25s, border-color .25s, transform .25s !important;
   border-radius: 12px !important;
-  border: 1px solid transparent !important;
 }
 .creator-row:hover {
   background: rgba(232,25,44,.06) !important;
-  border-color: rgba(232,25,44,.2) !important;
-  box-shadow: 0 4px 20px rgba(232,25,44,.1), inset 0 0 20px rgba(232,25,44,.03) !important;
-  transform: translateX(-4px) !important;
+  border: 1px solid rgba(232,25,44,.2) !important;
+  transform: translateX(-3px) !important;
 }
 
-/* ── 🎯 Hero Slider ── */
-.hero-slider-wrap {
-  position: relative;
+/* ── 🎨 بطاقات التصنيف ── */
+.genre-card {
+  transition: transform .3s cubic-bezier(.34,1.56,.64,1), border-color .3s, box-shadow .3s !important;
 }
-.hero-slider-wrap::after {
-  content: '';
-  position: absolute;
-  bottom: 0; left: 0; right: 0;
-  height: 120px;
-  background: linear-gradient(to top, var(--ink), transparent);
-  pointer-events: none;
-  z-index: 2;
+.genre-card:hover {
+  transform: translateY(-5px) scale(1.04) !important;
+  border-color: rgba(232,25,44,.35) !important;
+  box-shadow: 0 10px 28px rgba(0,0,0,.4), 0 0 16px rgba(232,25,44,.12) !important;
 }
-.hslide-btn-p {
+.genre-card:hover .genre-card-icon {
+  transform: scale(1.15) !important;
+  display: inline-block;
+}
+
+/* ── 📌 تبويبات النوع ── */
+.ttab.active {
   background: linear-gradient(135deg, #e8192c, #ff4500) !important;
-  box-shadow: 0 0 25px rgba(232,25,44,.6), 0 4px 20px rgba(232,25,44,.4) !important;
-  position: relative;
-  overflow: hidden;
-}
-.hslide-btn-p::before {
-  content: '';
-  position: absolute;
-  top: -50%; left: -50%;
-  width: 200%; height: 200%;
-  background: linear-gradient(45deg, transparent 30%, rgba(255,255,255,.15) 50%, transparent 70%);
-  transform: translateX(-100%);
-  animation: btnShine 3s ease-in-out infinite;
-}
-@keyframes btnShine {
-  0%   { transform: translateX(-100%) rotate(45deg); }
-  30%  { transform: translateX(100%) rotate(45deg); }
-  100% { transform: translateX(100%) rotate(45deg); }
+  box-shadow: 0 0 18px rgba(232,25,44,.45), 0 4px 12px rgba(232,25,44,.25) !important;
+  border-color: transparent !important;
 }
 
-/* ── 🔴 Rank Badges — توهج إضافي ── */
-.trend-rank {
-  position: absolute !important;
-  top: 8px !important; left: 8px !important;
-  background: linear-gradient(135deg, #e8192c, #ff4500) !important;
-  color: #fff !important;
-  font-family: 'Bebas Neue', sans-serif !important;
-  font-size: 1rem !important;
-  width: 28px !important; height: 28px !important;
-  border-radius: 6px !important;
-  display: flex !important;
-  align-items: center !important; justify-content: center !important;
-  box-shadow: 0 0 12px rgba(232,25,44,.6), 0 2px 8px rgba(0,0,0,.4) !important;
-  z-index: 5 !important;
-}
-
-/* ── 📊 إحصائيات البطاقة ── */
+/* ── 📊 إحصائيات ── */
 .stat-card {
-  background: linear-gradient(135deg, rgba(255,255,255,.04), rgba(255,255,255,.02)) !important;
-  border: 1px solid rgba(255,255,255,.08) !important;
-  transition: all .3s !important;
-  position: relative;
-  overflow: hidden;
+  transition: transform .3s, box-shadow .3s !important;
 }
-.stat-card::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, var(--red), transparent);
-  opacity: 0;
-  transition: opacity .3s;
-}
-.stat-card:hover::before { opacity: 1; }
 .stat-card:hover {
-  border-color: rgba(232,25,44,.3) !important;
-  box-shadow: 0 8px 30px rgba(0,0,0,.4), 0 0 20px rgba(232,25,44,.1) !important;
   transform: translateY(-3px) !important;
+  box-shadow: 0 8px 24px rgba(0,0,0,.4), 0 0 16px rgba(232,25,44,.08) !important;
 }
 .stat-card .sv {
-  text-shadow: 0 0 15px rgba(232,25,44,.4) !important;
-  animation: statGlow 3s ease-in-out infinite;
+  animation: svGlow 3s ease-in-out infinite;
 }
-@keyframes statGlow {
-  0%,100% { text-shadow: 0 0 10px rgba(232,25,44,.3); }
-  50%     { text-shadow: 0 0 20px rgba(232,25,44,.7), 0 0 35px rgba(232,25,44,.3); }
+.pstat-num {
+  animation: svGlow 3.5s ease-in-out infinite;
 }
-
-/* ── 🔔 Toast ── */
-.toast {
-  box-shadow:
-    0 8px 32px rgba(0,0,0,.6),
-    0 0 20px rgba(232,25,44,.2),
-    inset 0 1px 0 rgba(255,255,255,.08) !important;
-  backdrop-filter: blur(16px) saturate(1.5) !important;
-  border: 1px solid rgba(255,255,255,.08) !important;
+@keyframes svGlow {
+  0%,100% { text-shadow: 0 0 8px rgba(232,25,44,.3); }
+  50%     { text-shadow: 0 0 20px rgba(232,25,44,.7), 0 0 36px rgba(232,25,44,.25); }
 }
 
-/* ── 🪟 Modal ── */
-.modal-box {
-  border: 1px solid rgba(255,255,255,.08) !important;
-  box-shadow:
-    0 24px 80px rgba(0,0,0,.8),
-    0 0 40px rgba(232,25,44,.1),
-    inset 0 1px 0 rgba(255,255,255,.05) !important;
+/* ── 📜 Manifesto ── */
+.manifesto-text em {
+  text-shadow: 0 0 16px rgba(232,25,44,.5), 0 0 32px rgba(232,25,44,.2) !important;
 }
 
 /* ── 🟥 أزرار رئيسية ── */
-.btn-red, .pbtn-p {
-  background: linear-gradient(135deg, #e8192c, #c41024) !important;
-  box-shadow: 0 0 20px rgba(232,25,44,.4), 0 4px 14px rgba(232,25,44,.3) !important;
-  transition: all .25s !important;
+.pbtn-p, .hslide-btn-p {
+  transition: transform .25s, box-shadow .25s !important;
 }
-.btn-red:hover, .pbtn-p:hover {
-  box-shadow: 0 0 35px rgba(232,25,44,.7), 0 6px 20px rgba(232,25,44,.4) !important;
+.pbtn-p:hover, .hslide-btn-p:hover {
+  box-shadow: 0 0 28px rgba(232,25,44,.7), 0 6px 18px rgba(232,25,44,.35) !important;
   transform: translateY(-2px) !important;
 }
 
-/* ── 🌈 Platform Stats Bar — ألوان حية ── */
-.pstat-num {
-  text-shadow: 0 0 15px rgba(232,25,44,.5) !important;
-  animation: statNumPulse 3s ease-in-out infinite;
-}
-@keyframes statNumPulse {
-  0%,100% { text-shadow: 0 0 10px rgba(232,25,44,.4); }
-  50%     { text-shadow: 0 0 25px rgba(232,25,44,.8), 0 0 45px rgba(232,25,44,.3); }
-}
-
-/* ── 🎨 Genre Cards ── */
-.genre-card {
-  transition: all .3s cubic-bezier(.34,1.56,.64,1) !important;
-  border: 1px solid rgba(255,255,255,.06) !important;
-  position: relative;
-  overflow: hidden;
-}
-.genre-card::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(circle at 50% 0%, rgba(232,25,44,.1), transparent 70%);
-  opacity: 0;
-  transition: opacity .3s;
-}
-.genre-card:hover {
-  transform: translateY(-6px) scale(1.03) !important;
-  border-color: rgba(232,25,44,.3) !important;
-  box-shadow: 0 12px 30px rgba(0,0,0,.4), 0 0 20px rgba(232,25,44,.15) !important;
-}
-.genre-card:hover::before { opacity: 1; }
-.genre-card-icon {
-  transition: transform .3s, filter .3s !important;
-}
-.genre-card:hover .genre-card-icon {
-  transform: scale(1.2) rotate(-5deg) !important;
-  filter: drop-shadow(0 0 8px rgba(232,25,44,.5)) !important;
-}
-
-/* ── 📖 Work title glow ── */
-.work-title {
-  transition: color .2s !important;
-}
-.work-card:hover .work-title {
-  color: #fff !important;
-  text-shadow: 0 0 8px rgba(255,255,255,.2) !important;
-}
-
-/* ── 🌟 Section Divider ── */
-section {
-  position: relative;
-}
-section + section::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 10%; right: 10%;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(232,25,44,.2), rgba(123,47,255,.15), rgba(232,25,44,.2), transparent);
-}
-
-/* ── 💬 Comment / Input focus glow ── */
-.fi input:focus, .fi textarea:focus, .fi select:focus {
-  box-shadow: 0 0 0 3px rgba(232,25,44,.15), 0 0 15px rgba(232,25,44,.08) !important;
-}
-
-/* ── 🔖 Bookmark btn ── */
-.work-bk-btn:hover, .work-bk-btn.bk-active {
-  box-shadow: 0 0 12px rgba(245,166,35,.5) !important;
-}
-
-/* ── 🏅 Platform badge container ── */
+/* ── Badge توهج ── */
 .vbadge {
-  box-shadow: 0 0 8px rgba(232,25,44,.4) !important;
-  animation: vbadgePulse 2.5s ease-in-out infinite !important;
+  animation: vbPulse 2.5s ease-in-out infinite !important;
 }
-@keyframes vbadgePulse {
-  0%,100% { box-shadow: 0 0 6px rgba(232,25,44,.3); }
-  50%     { box-shadow: 0 0 14px rgba(232,25,44,.7), 0 0 22px rgba(232,25,44,.3); }
+@keyframes vbPulse {
+  0%,100% { box-shadow: 0 0 5px rgba(232,25,44,.3); }
+  50%     { box-shadow: 0 0 12px rgba(232,25,44,.7); }
 }
 
-/* ── 🎴 قسم الأعمال — خلفية هالة ── */
-#home-page > section:nth-child(3) {
-  position: relative;
-}
-#home-page > section:nth-child(3)::before {
-  content: '';
-  position: absolute;
-  top: -100px; right: -200px;
-  width: 600px; height: 600px;
-  background: radial-gradient(circle, rgba(123,47,255,.04) 0%, transparent 70%);
-  pointer-events: none;
-  animation: sectionAura 12s ease-in-out infinite alternate;
-}
-#home-page > section:nth-child(3)::after {
-  content: '';
-  position: absolute;
-  bottom: -100px; left: -200px;
-  width: 500px; height: 500px;
-  background: radial-gradient(circle, rgba(232,25,44,.04) 0%, transparent 70%);
-  pointer-events: none;
-  animation: sectionAura2 10s ease-in-out infinite alternate;
-}
-@keyframes sectionAura  { 0% { transform: scale(.8) translate(0,0); } 100% { transform: scale(1.2) translate(50px,30px); } }
-@keyframes sectionAura2 { 0% { transform: scale(1.1) translate(0,0); } 100% { transform: scale(.9) translate(-30px,50px); } }
-
-/* ── 🖱️ Scrollbar مخصص ── */
-::-webkit-scrollbar { width: 5px; height: 5px; }
+/* ── Scroll Bar ── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: rgba(255,255,255,.02); }
 ::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, rgba(232,25,44,.6), rgba(123,47,255,.4));
+  background: linear-gradient(180deg, rgba(232,25,44,.7), rgba(123,47,255,.5));
   border-radius: 10px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, rgba(232,25,44,.9), rgba(123,47,255,.7));
+  background: linear-gradient(180deg, #e8192c, #7b2fff);
 }
 
-/* ── ✨ Page transition shimmer ── */
+/* ── Page transition ── */
 .page.active {
-  animation: pageReveal .4s ease-out forwards;
+  animation: pageIn .35s ease-out forwards;
 }
-@keyframes pageReveal {
-  from { opacity: .7; transform: translateY(6px); }
-  to   { opacity: 1;  transform: translateY(0); }
+@keyframes pageIn {
+  from { opacity: .75; transform: translateY(5px); }
+  to   { opacity: 1;   transform: translateY(0); }
 }
 
-/* ── 🔥 Loading spinner ── */
+/* ── Loading spin ── */
 .spin {
   color: var(--red) !important;
-  filter: drop-shadow(0 0 6px rgba(232,25,44,.6)) !important;
+  filter: drop-shadow(0 0 5px rgba(232,25,44,.55)) !important;
 }
 
-/* ── 🌙 Light Mode overrides ── */
-body.light-mode::before,
-body.light-mode::after {
-  opacity: 0 !important;
+/* ── Search focus ── */
+.adv-search-input-wrap input:focus {
+  box-shadow: 0 0 0 3px rgba(232,25,44,.12), 0 0 18px rgba(232,25,44,.08) !important;
 }
+
+/* ── Trending rank badge ── */
+.trend-rank {
+  box-shadow: 0 0 10px rgba(232,25,44,.5) !important;
+}
+
+/* ── Light mode: تعطيل التأثيرات الكونية ── */
+body.light-mode #mv-bg-glow { display: none !important; }
 
 </style>
 <link rel="manifest" href="/manifest.json">
@@ -5305,52 +5004,8 @@ body.light-mode::after {
 </head>
 <body>
 
-<!-- 🌌 Particle Canvas -->
-<canvas id="mv-particles" style="position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.55"></canvas>
-<script>
-(function(){
-  const c = document.getElementById('mv-particles');
-  if(!c) return;
-  const ctx = c.getContext('2d');
-  let W, H, particles = [];
-  function resize(){ W = c.width = window.innerWidth; H = c.height = window.innerHeight; }
-  resize();
-  window.addEventListener('resize', resize);
-  const COLORS = ['rgba(232,25,44,', 'rgba(255,107,53,', 'rgba(123,47,255,', 'rgba(0,212,255,', 'rgba(255,215,0,'];
-  function Particle(){
-    this.x = Math.random()*W;
-    this.y = Math.random()*H;
-    this.r = Math.random()*1.5 + .3;
-    this.vx = (Math.random()-.5)*.25;
-    this.vy = (Math.random()-.5)*.25 - .1;
-    this.a = Math.random()*.6 + .1;
-    this.da = (Math.random()-.5)*.004;
-    this.color = COLORS[Math.floor(Math.random()*COLORS.length)];
-  }
-  Particle.prototype.update = function(){
-    this.x += this.vx; this.y += this.vy;
-    this.a += this.da;
-    if(this.a <= 0 || this.a >= .75) this.da *= -1;
-    if(this.x < -5) this.x = W+5;
-    if(this.x > W+5) this.x = -5;
-    if(this.y < -5) this.y = H+5;
-    if(this.y > H+5) this.y = -5;
-  };
-  for(let i=0;i<90;i++) particles.push(new Particle());
-  function draw(){
-    ctx.clearRect(0,0,W,H);
-    particles.forEach(p=>{
-      p.update();
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
-      ctx.fillStyle = p.color + p.a + ')';
-      ctx.fill();
-    });
-    requestAnimationFrame(draw);
-  }
-  draw();
-})();
-</script>
+<!-- 🌌 خلفية هالات كونية -->
+<div id="mv-bg-glow" aria-hidden="true"></div>
 
 <!-- Hidden file inputs -->
 <input type="file" id="inp-avatar" accept="image/*" style="display:none" onchange="onAvatarPick(this)" aria-label="رفع صورة شخصية">
@@ -6010,7 +5665,7 @@ body.light-mode::after {
         <div style="background:var(--s2);border:1px solid var(--br);border-radius:12px;padding:1.3rem;text-align:center;margin-top:1rem;">
           <p style="font-weight:800;font-size:.95rem;margin-bottom:.4rem">📧 تواصل مع الإدارة</p>
           <p style="font-size:.83rem;color:var(--mu);margin-bottom:.7rem">إذا كنت صاحب حقوق ملكية وتجد محتوى منتهكاً، تواصل معنا فوراً.</p>
-          <a href="/cdn-cgi/l/email-protection#453c2a302b2436362a30242e2e24052228242c296b262a28" style="color:var(--red);font-weight:700;font-size:.88rem"><span class="__cf_email__" data-cfemail="b0c9dfc5ded1c3c3dfc5d1dbdbd1f0d7ddd1d9dc9ed3dfdd">[email&#160;protected]</span></a>
+          <a href="/cdn-cgi/l/email-protection#d4adbba1bab5a7a7bba1b5bfbfb594b3b9b5bdb8fab7bbb9" style="color:var(--red);font-weight:700;font-size:.88rem"><span class="__cf_email__" data-cfemail="5c253329323d2f2f33293d37373d1c3b313d3530723f3331">[email&#160;protected]</span></a>
         </div>
       </div>
     </div>
@@ -6140,7 +5795,7 @@ body.light-mode::after {
       <div style="font-size:1.5rem;margin-bottom:.5rem">📬</div>
       <div style="font-weight:800;font-size:1rem;margin-bottom:.4rem">تواصل معنا</div>
       <p>هل لديك اقتراح أو تريد الانضمام إلى فريق MangaVerse؟</p>
-      <a href="/cdn-cgi/l/email-protection#e1988e948f8092928e94808a8a80a1868c80888dcf828e8c" class="contact-btn">✉️ راسلنا</a>
+      <a href="/cdn-cgi/l/email-protection#9ce5f3e9f2fdefeff3e9fdf7f7fddcfbf1fdf5f0b2fff3f1" class="contact-btn">✉️ راسلنا</a>
     </div>
   </div>
 
@@ -6200,6 +5855,7 @@ body.light-mode::after {
 
 <!-- NAV -->
 <nav>
+  <div id="mv-nav-line" aria-hidden="true"></div>
   <div class="logo" onclick="showPage('home')"><div class="hx">M</div><span class="logo-text">MANGA<span style="color:var(--red)">VERSE</span></span></div>
   <div class="nav-search">
     <input id="search-inp" type="text" placeholder="🔍 ابحث عن مانجا، كتاب، مبدع..." onkeydown="if(event.key==='Enter') doSearch()">
