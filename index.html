@@ -3,16 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>MangaVerse — منصة المانجا العربية</title>
+<title>Hibrna — منصة المانجا العربية</title>
 <meta name="description" content="منصة المانجا والإبداع العربي — اقرأ وانشر وشارك أعمالك">
-<meta property="og:site_name" content="MangaVerse">
+<meta property="og:site_name" content="Hibrna">
 <meta property="og:type" content="website">
-<meta id="og-title" property="og:title" content="MangaVerse — منصة المانجا العربية">
+<meta id="og-title" property="og:title" content="Hibrna — منصة المانجا العربية">
 <meta id="og-desc" property="og:description" content="عالم المانجا والروايات في مكان واحد! آلاف الأعمال من مبدعين عرب — اقرأ وانشر مجاناً">
 <meta id="og-image" property="og:image" content="https://raw.githubusercontent.com/younesouakka900-droid/%D8%B9%D8%A7%D9%84%D9%85-%D8%A7%D9%84%D9%85%D8%A7%D9%86%D8%AC%D8%A7/main/og-image.jpg">
-<meta id="og-url" property="og:url" content="https://mangaverse-one-lac.vercel.app">
+<meta id="og-url" property="og:url" content="https://hibrna-one-lac.vercel.app">
 <meta name="twitter:card" content="summary_large_image">
-<meta id="tw-title" name="twitter:title" content="MangaVerse">
+<meta id="tw-title" name="twitter:title" content="Hibrna">
 <meta id="tw-image" name="twitter:image" content="https://raw.githubusercontent.com/younesouakka900-droid/%D8%B9%D8%A7%D9%84%D9%85-%D8%A7%D9%84%D9%85%D8%A7%D9%86%D8%AC%D8%A7/main/og-image.jpg">
 <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&family=Bebas+Neue&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
 
@@ -27,8 +27,8 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, addDoc, updateDoc, deleteDo
 
 // مرجع إلغاء الاشتراك في onSnapshot
 
-const FB = { apiKey:"AIzaSyAzRxV19fXvYjY_3LSmW2LVnIYrCbkaVOk", authDomain:"mangaverse-69f6b.firebaseapp.com",
-  projectId:"mangaverse-69f6b", storageBucket:"mangaverse-69f6b.firebasestorage.app",
+const FB = { apiKey:"AIzaSyAzRxV19fXvYjY_3LSmW2LVnIYrCbkaVOk", authDomain:"hibrna-69f6b.firebaseapp.com",
+  projectId:"hibrna-69f6b", storageBucket:"hibrna-69f6b.firebasestorage.app",
   messagingSenderId:"1019528073160", appId:"1:1019528073160:web:0afcb6826997ced3fdbafd" };
 const app  = initializeApp(FB);
 const auth = getAuth(app);
@@ -144,7 +144,7 @@ onAuthStateChanged(auth, async user=>{
     // أظهر/أخفي زر الإدارة
     const adminBtn=G("nav-admin-btn");
     if(adminBtn) adminBtn.style.display=isAdmin()?"inline-flex":"none";
-    // شغّل المستمع الفوري للإشعارات (real-time)
+    // ✅ دمج المستمعات في setTimeout واحد لتقليل التعقيد
     setTimeout(()=> {
       window.startNotifListener && startNotifListener();
       window.startChatBadgeListener && startChatBadgeListener();
@@ -152,9 +152,11 @@ onAuthStateChanged(auth, async user=>{
     // ✅ إعادة ضبط القفل دائماً عند تغيير الحساب
     window._openingWork = false;
     window._openingWorkTs = 0;
-    // ✅ أعد تحميل البطاقات عند تسجيل الدخول لضمان ظهور زر الحذف/التعديل الصحيح
-    // نستخدم setTimeout لتجنب التعارض مع التحميل الأول
-    setTimeout(()=>{ loadWorks(); loadHeroSlider(); loadTrending(); }, 500);
+    // ✅ إعادة تحميل بطاقات التعديل/الحذف فقط بعد تغيير الحساب
+    // (تجنب التحميل المزدوج مع window.load)
+    if(document.readyState === "complete"){
+      setTimeout(()=>{ loadWorks(); loadHeroSlider(); loadTrending(); }, 500);
+    }
     if(window._curPage==="profile") loadProfile();
     if(window._curPage==="library") loadLibrary();
   } else {
@@ -201,15 +203,19 @@ function clearProfileUI(){
 window.doRegister=async()=>{
   const name=V("r-name"),email=V("r-email"),pass=V("r-pass");
   if(!name||!email||!pass) return toast("⚠️ ملء جميع الحقول مطلوب","w");
+  // ✅ التحقق من صحة الاسم: لا يقل عن حرفين ولا يحتوي على مسافات فقط
+  if(name.trim().length < 2) return toast("⚠️ الاسم يجب أن يكون حرفين على الأقل","w");
+  if(name.trim().length > 40) return toast("⚠️ الاسم طويل جداً — الحد الأقصى 40 حرفاً","w");
   if(!document.getElementById("reg-terms-cb")?.checked) return toast("⚠️ يجب الموافقة على شروط الاستخدام أولاً","w");
   if(pass.length<6) return toast("⚠️ كلمة المرور 6 أحرف على الأقل","w");
   setBL("btn-reg",true);
   try{
     const cr=await createUserWithEmailAndPassword(auth,email,pass);
-    await updateProfile(cr.user,{displayName:name});
+    const trimmedName = name.trim(); // ✅ إزالة المسافات الزائدة من الاسم
+    await updateProfile(cr.user,{displayName:trimmedName});
     await setDoc(doc(db,"users",cr.user.uid),{
-      name,email,username:"@"+name.toLowerCase().replace(/\s+/g,"_"),
-      bio:"مبدع جديد في MangaVerse 🎨",location:"",
+      name:trimmedName,email,username:"@"+trimmedName.toLowerCase().replace(/\s+/g,"_"),
+      bio:"مبدع جديد في Hibrna 🎨",location:"",
       avatarUrl:"",coverUrl:"",verified:false,
       emailVerified:false,
       followers:[],following:[],bookmarks:[],
@@ -282,7 +288,7 @@ window.doGoogleLogin = async () => {
         name: user.displayName||"مستخدم جوجل",
         email: user.email,
         username: "@"+(user.displayName||"user").toLowerCase().replace(/\s+/g,"_"),
-        bio:"مبدع جديد في MangaVerse 🎨",location:"",
+        bio:"مبدع جديد في Hibrna 🎨",location:"",
         avatarUrl: user.photoURL||"",
         coverUrl:"",verified:false,emailVerified:true,
         followers:[],following:[],bookmarks:[],
@@ -363,10 +369,13 @@ window.onCoverPick=async inp=>{
   }catch(e){ toast("❌ فشل رفع الصورة","e"); }
 };
 function setAvatarUI(url){
+  // ✅ إصلاح XSS: تعقيم الرابط قبل إدراجه في CSS
+  const safeUrl = _safeUrl(url);
+  if(!safeUrl) return;
   const img=G("p-av-img"),ini=G("p-av-ini"),nav=G("nav-av"),sbAv=G("sb-av");
-  if(img){img.src=url;img.style.display="block";if(ini)ini.style.display="none";}
-  if(nav){nav.style.backgroundImage=`url(${url})`;nav.style.backgroundSize="cover";nav.textContent="";}
-  if(sbAv){sbAv.style.backgroundImage=`url(${url})`;sbAv.style.backgroundSize="cover";sbAv.textContent="";}
+  if(img){img.src=safeUrl;img.style.display="block";if(ini)ini.style.display="none";}
+  if(nav){nav.style.backgroundImage=`url(${safeUrl})`;nav.style.backgroundSize="cover";nav.textContent="";}
+  if(sbAv){sbAv.style.backgroundImage=`url(${safeUrl})`;sbAv.style.backgroundSize="cover";sbAv.textContent="";}
 }
 function setCoverUI(url){
   const el=G("p-cover-bg");
@@ -647,44 +656,9 @@ window.loadHeroSlider=async()=>{
   // ── صورة واحدة ثابتة فقط ──
   const PROMO_IMG = "https://ahmnycfbfonmztxmwqdi.supabase.co/storage/v1/object/public/pdfs/uploads/og-image.jpg";
   wrap.innerHTML = `<div class="hslide active" style="padding:0;overflow:hidden;height:100%;">
-    <img src="${PROMO_IMG}" alt="MangaVerse" style="width:100%;height:100%;object-fit:cover;object-position:center;display:block;">
+    <img src="${PROMO_IMG}" alt="Hibrna" style="width:100%;height:100%;object-fit:cover;object-position:center;display:block;">
   </div>`;
   const dots=G("slider-dots"); if(dots) dots.innerHTML="";
-  return;
-  try{
-    const q=query(collection(db,"works"),orderBy("createdAt","desc"),limit(10));
-    const snap=await getDocs(q);
-    if(snap.empty){wrap.innerHTML=defaultHeroSlide();return;}
-    let slides=[];
-    snap.forEach(d=>slides.push({id:d.id,...d.data()}));
-    slides.sort((a,b)=>(b.views||0)-(a.views||0));
-    slides=slides.slice(0,5);
-
-    // الشريحة الترويجية الثابتة
-    const PROMO_IMG = "https://ahmnycfbfonmztxmwqdi.supabase.co/storage/v1/object/public/pdfs/uploads/og-image.jpg";
-    const promoSlide = `<div class="hslide active" style="cursor:default;padding:0;overflow:hidden;"><img src="${PROMO_IMG}" alt="MangaVerse" style="width:100%;height:100%;object-fit:cover;object-position:center;display:block;"></div>`;
-
-    const workSlides = slides.map(w=>`
-      <div class="hslide" data-id="${w.id}"
-        style="background-image:linear-gradient(to left,transparent 30%,rgba(8,8,15,.95) 70%),url('${w.coverUrl||""}');background-size:cover;background-position:center">
-        <div class="hslide-content">
-          <div class="hslide-badge">${statusBadge(w.status)} ${w.genre}</div>
-          <h2 class="hslide-title">${w.title}</h2>
-          <p class="hslide-desc">${(w.desc||"").substring(0,120)}...</p>
-          <div class="hslide-meta">\u270d\ufe0f ${w.authorName||""} ${w.authorVerified?'<span class="vbadge">\u2746 \u0645\u0648\u062b\u0642</span>':''} &nbsp;\u2022&nbsp; \ud83d\udc41 ${w.views||0} &nbsp;\u2022&nbsp; \u2b50 ${(w.rating||0).toFixed(1)}</div>
-          <div class="hslide-btns">
-            <button class="hslide-btn-p" onclick="openWork('${w.id}')">\ud83d\udcd6 \u0627\u0642\u0631\u0623 \u0627\u0644\u0622\u0646</button>
-            <button class="hslide-btn-o" onclick="event.stopPropagation();toggleBookmark('${w.id}')">\ud83d\udd16 \u062d\u0641\u0638</button>
-          </div>
-        </div>
-      </div>`).join("");
-
-    wrap.innerHTML = promoSlide + workSlides;
-    const totalSlides = slides.length + 1;
-    const dots=G("slider-dots");
-    if(dots) dots.innerHTML=Array.from({length:totalSlides},(_,i)=>`<div class="sdot ${i===0?"active":""}" onclick="goSlide(${i})"></div>`).join("");
-    startSlider(totalSlides);
-  }catch(e){wrap.innerHTML=defaultHeroSlide();}
 };
 
 let _sliderIdx=0, _sliderTimer=null, _sliderLen=0;
@@ -962,11 +936,11 @@ window.openWork=async id=>{
   const _workUrl=location.origin+location.pathname+'#/work/'+id;
   try{ history.pushState({workId:id},'',_workUrl); }catch(_){}
   // تحديث عنوان الصفحة
-  document.title=`${w.title} — MangaVerse`;
+  document.title=`${w.title} — Hibrna`;
   // تحديث OG meta — اسم مختلف للمعامل لتجنب التعارض مع id
   const _setMeta=(metaId,v)=>{const el=document.getElementById(metaId);if(el)el.setAttribute('content',v);};
-  _setMeta('og-title', w.title+' — MangaVerse');
-  _setMeta('og-desc', w.desc||'اقرأ هذا العمل على MangaVerse');
+  _setMeta('og-title', w.title+' — Hibrna');
+  _setMeta('og-desc', w.desc||'اقرأ هذا العمل على Hibrna');
   _setMeta('og-image', w.coverUrl||'');
   _setMeta('og-url', _workUrl);
   _setMeta('tw-title', w.title);
@@ -984,14 +958,14 @@ window.openWork=async id=>{
 // ─── دوال المشاركة ───
 window.shareOnWhatsapp = () => {
   const url   = encodeURIComponent(window._shareWorkUrl || location.href);
-  const text  = encodeURIComponent(`📖 اقرأ «${window._shareWorkTitle||"هذا العمل"}» على MangaVerse
+  const text  = encodeURIComponent(`📖 اقرأ «${window._shareWorkTitle||"هذا العمل"}» على Hibrna
 `);
   window.open(`https://wa.me/?text=${text}${url}`, "_blank");
 };
 
 window.shareOnTwitter = () => {
   const url  = encodeURIComponent(window._shareWorkUrl || location.href);
-  const text = encodeURIComponent(`📖 اقرأ «${window._shareWorkTitle||""}» على MangaVerse 🎨`);
+  const text = encodeURIComponent(`📖 اقرأ «${window._shareWorkTitle||""}» على Hibrna 🎨`);
   window.open(`https://twitter.com/intent/tweet?text=${text}&url=${url}`, "_blank");
 };
 
@@ -1895,6 +1869,12 @@ async function loadChatList() {
       G("chat-list-body").innerHTML = '<div class="empty-state">💬 لا توجد محادثات بعد<br><small style="color:var(--mu);font-size:.8rem">ابدأ محادثة من صفحة أي مبدع</small></div>';
       return;
     }
+    // ✅ إصلاح: استخدام snap.docs بدلاً من sortedDocs غير المعرّف
+    const sortedDocs = snap.docs.slice().sort((a,b)=>{
+      const ta = a.data().lastAt?.seconds||0;
+      const tb = b.data().lastAt?.seconds||0;
+      return tb - ta;
+    });
     const items = await Promise.all(sortedDocs.map(async d => {
       const data = d.data();
       const otherUid = data.members.find(m => m !== CU.uid);
@@ -1988,7 +1968,7 @@ window.sendChatMsg = async () => {
   try {
     await addDoc(collection(db,"chats",chatId,"messages"),{
       uid: CU.uid, name: CU.displayName||"مستخدم",
-      text: sanitize(text), at: serverTimestamp()
+      text: text, at: serverTimestamp() // ✅ النص الخام — التعقيم يتم عند العرض فقط
     });
     await setDoc(doc(db,"chats",chatId),{
       lastMsg: text.substring(0,60),
@@ -2042,10 +2022,10 @@ window.requestPushPermission = async () => {
     toast("✅ تم تفعيل إشعارات الجوال!");
     _updatePushBtn();
     // إشعار ترحيبي
-    new Notification("MangaVerse 🎨", {
+    new Notification("Hibrna 🎨", {
       body: "ستصلك الإشعارات الآن فوراً!",
-      icon: "https://res.cloudinary.com/ddsfdyjek/image/upload/w_64,h_64,c_fill/mangaverse_logo",
-      badge: "https://res.cloudinary.com/ddsfdyjek/image/upload/w_32,h_32,c_fill/mangaverse_logo"
+      icon: "https://res.cloudinary.com/ddsfdyjek/image/upload/w_64,h_64,c_fill/hibrna_logo",
+      badge: "https://res.cloudinary.com/ddsfdyjek/image/upload/w_32,h_32,c_fill/hibrna_logo"
     });
   } else {
     toast("⚠️ لم يتم منح الإذن — يمكنك تفعيله من إعدادات المتصفح","w");
@@ -2075,8 +2055,8 @@ function _sendBrowserNotif(title, body, icon){
   try {
     const n = new Notification(title, {
       body,
-      icon: icon || "https://res.cloudinary.com/ddsfdyjek/image/upload/w_64,h_64,c_fill/mangaverse_logo",
-      badge:"https://res.cloudinary.com/ddsfdyjek/image/upload/w_32,h_32,c_fill/mangaverse_logo",
+      icon: icon || "https://res.cloudinary.com/ddsfdyjek/image/upload/w_64,h_64,c_fill/hibrna_logo",
+      badge:"https://res.cloudinary.com/ddsfdyjek/image/upload/w_32,h_32,c_fill/hibrna_logo",
       dir: "rtl", lang: "ar"
     });
     n.onclick = () => { window.focus(); n.close(); };
@@ -2112,7 +2092,7 @@ window.startNotifListener = () => {
           const n = change.doc.data();
           if(!n.read && n.fromName){
             _sendBrowserNotif(
-              `MangaVerse — ${n.fromName}`,
+              `Hibrna — ${n.fromName}`,
               n.msg || "إشعار جديد",
             );
           }
@@ -2646,6 +2626,12 @@ window.closeSidebar=()=>{
   document.body.style.overflow="";
 };
 
+// ─── Debounce helper ───
+function _debounce(fn, delay){
+  let timer;
+  return function(...args){ clearTimeout(timer); timer = setTimeout(()=>fn.apply(this,args), delay); };
+}
+
 window.doSearch=()=>{
   const q=V("search-inp").trim();
   // إذا كان البحث المتقدم مفتوحاً استخدمه
@@ -2701,7 +2687,6 @@ window.resetAdvSearch = () => {
 window.applyAdvSearch = () => {
   const q    = (G("adv-search-inp")?.value || "").trim().toLowerCase();
   const f    = window._advFilters;
-
   // حساب عدد الفلاتر النشطة
   let activeCount = 0;
   if(f.type   !== "all") activeCount++;
@@ -2733,16 +2718,21 @@ window.applyAdvSearch = () => {
   loadWorksAdvanced(q, f);
 };
 
+// ✅ نسخة مع debounce لتجنب طلبات Firestore المتكررة عند الكتابة
+window._debouncedApplySearch = _debounce(() => applyAdvSearch(), 300);
+
 window.loadWorksAdvanced = async (searchQ, filters) => {
   const grid = G("works-grid");
   if(!grid) return;
   grid.innerHTML = '<div class="empty-state"><span class="spin">⏳</span> جاري البحث...</div>';
 
   try {
-    // جلب الأعمال مع مراعاة الترتيب
+    // ✅ تحسين: نجلب فقط ما يكفي حسب وجود فلاتر
+    const hasFilters = searchQ || filters.type!=="all" || filters.genre!=="all" || 
+                       filters.status!=="all" || filters.rating!=="all";
+    const fetchLimit = hasFilters ? 80 : 24; // تقليل الـ quota عند عدم وجود فلاتر
     let baseQuery;
-    // جلب الأعمال دائماً بـ createdAt ثم ترتيب محلي
-    baseQuery = query(collection(db,"works"), orderBy("createdAt","desc"), limit(80));
+    baseQuery = query(collection(db,"works"), orderBy("createdAt","desc"), limit(fetchLimit));
 
     const snap = await getDocs(baseQuery);
     let works = [];
@@ -2783,7 +2773,7 @@ window.loadWorksAdvanced = async (searchQ, filters) => {
 
 window.addEventListener("load",()=>{
   // استعادة وضع السمة من localStorage
-  if(localStorage.getItem("mangaverse_theme")==="light"){
+  if(localStorage.getItem("hibrna_theme")==="light"){
     document.body.classList.add("light-mode");
     const btn=G("theme-toggle-btn"); if(btn) btn.textContent="☀️";
   }
@@ -2832,7 +2822,7 @@ window.setThemeMode = (mode) => {
   document.body.classList.toggle("light-mode", isLight);
   const btn = G("theme-toggle-btn");
   if(btn) btn.textContent = isLight ? "☀️" : "🌙";
-  localStorage.setItem("mangaverse_theme", mode);
+  localStorage.setItem("hibrna_theme", mode);
   G("cust-dark-btn")?.classList.toggle("active", !isLight);
   G("cust-light-btn")?.classList.toggle("active", isLight);
 };
@@ -2849,7 +2839,7 @@ window.resetCustomize = () => {
   document.body.classList.remove("light-mode");
   const btn = G("theme-toggle-btn"); if(btn) btn.textContent = "🌙";
   // مسح localStorage
-  ["mv_accent","mv_fontsize","mv_cardstyle","mangaverse_theme"].forEach(k => localStorage.removeItem(k));
+  ["mv_accent","mv_fontsize","mv_cardstyle","hibrna_theme"].forEach(k => localStorage.removeItem(k));
   // تحديث الـ chips
   G("cust-colors").querySelectorAll(".cust-color").forEach((b,i) => b.classList.toggle("active", i===0));
   G("m-customize").querySelectorAll(".achip[data-size]").forEach((b) => b.classList.toggle("active", b.dataset.size==="16"));
@@ -2903,7 +2893,7 @@ window.toggleTheme=()=>{
   const isLight=document.body.classList.toggle("light-mode");
   const btn=G("theme-toggle-btn");
   if(btn) btn.textContent=isLight?"☀️":"🌙";
-  localStorage.setItem("mangaverse_theme", isLight?"light":"dark");
+  localStorage.setItem("hibrna_theme", isLight?"light":"dark");
 };
 
 // ─── HELPERS ───
@@ -3110,7 +3100,7 @@ async function awardFirstRegBadge(uid){
       const badges = snap.data().badges||[];
       if(!badges.includes("first_reg")){
         await setDoc(doc(db,"users",uid),{ badges:[...badges,"first_reg"] },{ merge:true });
-        setTimeout(()=>showBadgeNotify({ icon:"🎉", name:"مرحباً بك!", desc:"أنشأت حسابك في MangaVerse" }),2000);
+        setTimeout(()=>showBadgeNotify({ icon:"🎉", name:"مرحباً بك!", desc:"أنشأت حسابك في Hibrna" }),2000);
       }
     }
   }catch(e){}
@@ -4774,7 +4764,7 @@ body.light-mode .stab:hover{color:var(--red);}
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="MangaVerse">
+<meta name="apple-mobile-web-app-title" content="Hibrna">
 <meta name="theme-color" content="#e8192c">
 <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/younesouakka900-droid/%D8%B9%D8%A7%D9%84%D9%85-%D8%A7%D9%84%D9%85%D8%A7%D9%86%D8%AC%D8%A7/main/favicon.png">
 <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/younesouakka900-droid/%D8%B9%D8%A7%D9%84%D9%85-%D8%A7%D9%84%D9%85%D8%A7%D9%86%D8%AC%D8%A7/main/favicon.png">
@@ -4997,7 +4987,7 @@ body.light-mode .stab:hover{color:var(--red);}
     <div class="cust-section">
       <div class="cust-label">🎨 اللون الرئيسي</div>
       <div class="cust-colors" id="cust-colors">
-        <button class="cust-color active" data-color="#e8192c" data-rg="rgba(232,25,44,.22)"  style="background:#e8192c" onclick="setAccentColor(this)" title="أحمر MangaVerse"></button>
+        <button class="cust-color active" data-color="#e8192c" data-rg="rgba(232,25,44,.22)"  style="background:#e8192c" onclick="setAccentColor(this)" title="أحمر Hibrna"></button>
         <button class="cust-color" data-color="#7c3aed" data-rg="rgba(124,58,237,.22)" style="background:#7c3aed" onclick="setAccentColor(this)" title="بنفسجي"></button>
         <button class="cust-color" data-color="#0ea5e9" data-rg="rgba(14,165,233,.22)" style="background:#0ea5e9" onclick="setAccentColor(this)" title="أزرق"></button>
         <button class="cust-color" data-color="#10b981" data-rg="rgba(16,185,129,.22)" style="background:#10b981" onclick="setAccentColor(this)" title="أخضر"></button>
@@ -5113,7 +5103,7 @@ body.light-mode .stab:hover{color:var(--red);}
               • الأبعاد المثالية: <strong>800 × 1200 بكسل</strong> (نسبة 2:3 عمودي)<br>
               • الحجم الأقصى للصور: <strong>5MB</strong><br>
               • الصيغ المدعومة: JPG, PNG, WEBP<br>
-              • سيُضاف لوجو MangaVerse تلقائياً ✦
+              • سيُضاف لوجو Hibrna تلقائياً ✦
             </div>
           </div>
         </div>
@@ -5382,13 +5372,13 @@ body.light-mode .stab:hover{color:var(--red);}
       </div>
       <div class="terms-section" id="ts1">
         <h2>📜 1. القبول بالشروط</h2>
-        <p>باستخدامك لمنصة MangaVerse أو نشر أي محتوى عليها، فإنك توافق صراحةً على الالتزام بجميع الشروط والأحكام الواردة في هذه الصفحة.</p>
+        <p>باستخدامك لمنصة Hibrna أو نشر أي محتوى عليها، فإنك توافق صراحةً على الالتزام بجميع الشروط والأحكام الواردة في هذه الصفحة.</p>
         <p>إذا كنت لا توافق على هذه الشروط، يرجى التوقف عن استخدام المنصة فوراً.</p>
         <div class="terms-gold"><p>⚠️ عند نشر أي عمل على المنصة، تقر صراحةً بأنك اطلعت على هذه الشروط ووافقت عليها بالكامل.</p></div>
       </div>
       <div class="terms-section" id="ts2">
         <h2>🔒 2. حقوق الملكية الفكرية</h2>
-        <p>تحترم منصة MangaVerse حقوق الملكية الفكرية وتلتزم بجميع القوانين والاتفاقيات الدولية المتعلقة بها.</p>
+        <p>تحترم منصة Hibrna حقوق الملكية الفكرية وتلتزم بجميع القوانين والاتفاقيات الدولية المتعلقة بها.</p>
         <ul>
           <li>يُسمح فقط بنشر <strong>الأعمال الأصلية</strong> التي أنت صاحبها أو تملك حق نشرها رسمياً.</li>
           <li>يُحظر نشر أي مانجا أو رواية أو محتوى مرئي محمي بحقوق طبع ونشر دون إذن صريح من أصحابها.</li>
@@ -5441,7 +5431,7 @@ body.light-mode .stab:hover{color:var(--red);}
         <div style="background:var(--s2);border:1px solid var(--br);border-radius:12px;padding:1.3rem;text-align:center;margin-top:1rem;">
           <p style="font-weight:800;font-size:.95rem;margin-bottom:.4rem">📧 تواصل مع الإدارة</p>
           <p style="font-size:.83rem;color:var(--mu);margin-bottom:.7rem">إذا كنت صاحب حقوق ملكية وتجد محتوى منتهكاً، تواصل معنا فوراً.</p>
-          <a href="mailto:younassouakka@gmail.com" style="color:var(--red);font-weight:700;font-size:.88rem">younassouakka@gmail.com</a>
+          <a href="/cdn-cgi/l/email-protection#344d5b415a5547475b41555f5f55745359555d581a575b59" style="color:var(--red);font-weight:700;font-size:.88rem"><span class="__cf_email__" data-cfemail="ceb7a1bba0afbdbda1bbafa5a5af8ea9a3afa7a2e0ada1a3">[email&#160;protected]</span></a>
         </div>
       </div>
     </div>
@@ -5473,7 +5463,7 @@ body.light-mode .stab:hover{color:var(--red);}
   <div class="about-hero">
     <div style="position:relative;z-index:1">
       <div class="about-hero-title">من نحن</div>
-      <div class="about-hero-sub">القصة وراء MangaVerse</div>
+      <div class="about-hero-sub">القصة وراء Hibrna</div>
     </div>
   </div>
 
@@ -5486,9 +5476,9 @@ body.light-mode .stab:hover{color:var(--red);}
       <div class="founder-info">
         <div class="founder-name-ar">يونس واقا</div>
         <div class="founder-name-en">Younes Ouakka</div>
-        <div class="founder-role">🚀 مؤسس MangaVerse</div>
+        <div class="founder-role">🚀 مؤسس Hibrna</div>
         <div class="founder-bio">
-          شغوف بالكتابة والتصميم والاستقلالية — آمن بأن المبدع العربي يستحق مكاناً حقيقياً يعبّر فيه عن نفسه بحرية تامة، بعيداً عن القيود. فكانت MangaVerse ثمرة هذا الحلم.
+          شغوف بالكتابة والتصميم والاستقلالية — آمن بأن المبدع العربي يستحق مكاناً حقيقياً يعبّر فيه عن نفسه بحرية تامة، بعيداً عن القيود. فكانت Hibrna ثمرة هذا الحلم.
         </div>
       </div>
     </div>
@@ -5557,7 +5547,7 @@ body.light-mode .stab:hover{color:var(--red);}
     <div class="about-section-title">🔭 رؤيتنا</div>
     <div class="vision-box">
       <p>
-        نرى MangaVerse في المستقبل أكبر وأشهر منصة عربية للمانجا والروايات المصورة في العالم العربي —
+        نرى Hibrna في المستقبل أكبر وأشهر منصة عربية للمانجا والروايات المصورة في العالم العربي —
         وجهةً لا يمكن لأي مبدع أو قارئ عربي الاستغناء عنها.
         <br><br>
         <span style="color:var(--red);font-weight:800">الحلم كبير، والبداية من هنا. ✦</span>
@@ -5570,8 +5560,8 @@ body.light-mode .stab:hover{color:var(--red);}
     <div class="contact-box">
       <div style="font-size:1.5rem;margin-bottom:.5rem">📬</div>
       <div style="font-weight:800;font-size:1rem;margin-bottom:.4rem">تواصل معنا</div>
-      <p>هل لديك اقتراح أو تريد الانضمام إلى فريق MangaVerse؟</p>
-      <a href="mailto:younassouakka@gmail.com" class="contact-btn">✉️ راسلنا</a>
+      <p>هل لديك اقتراح أو تريد الانضمام إلى فريق Hibrna؟</p>
+      <a href="/cdn-cgi/l/email-protection#9ae3f5eff4fbe9e9f5effbf1f1fbdafdf7fbf3f6b4f9f5f7" class="contact-btn">✉️ راسلنا</a>
     </div>
   </div>
 
@@ -5890,7 +5880,7 @@ body.light-mode .stab:hover{color:var(--red);}
   </section>
 
   <footer>
-    <p>© 2025 MangaVerse — صُنع بـ ❤️ للمبدعين العرب | YOUNES OUAKKA</p>
+    <p>© 2025 Hibrna — صُنع بـ ❤️ للمبدعين العرب | YOUNES OUAKKA</p>
     <p style="margin-top:.5rem">
       <a href="https://mahbarat-alkhiyal.com" target="_blank">✦ محبرة الخيال — مجتمع المبدعين العرب</a>
     </p>
@@ -5916,7 +5906,7 @@ body.light-mode .stab:hover{color:var(--red);}
     <div class="p-cover" onclick="pickCover()">
       <div id="p-cover-bg">
         <div class="cover-grid"></div>
-        <div class="cover-txt">MANGAVERSE</div>
+        <div class="cover-txt">HIBRNA</div>
       </div>
       <button class="cover-edit-btn" onclick="event.stopPropagation();pickCover()">📷 تغيير صورة الغلاف</button>
     </div>
@@ -6136,7 +6126,7 @@ body.light-mode .stab:hover{color:var(--red);}
   </div>
 </div>
 
-<script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 function G(id){return document.getElementById(id);}
 function showPage(n){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
@@ -6245,7 +6235,7 @@ async function addWatermarkToImage(file) {
       // إعدادات الـ Watermark
       const fontSize = Math.max(16, Math.floor(img.width * 0.045));
       const padding  = Math.floor(img.width * 0.025);
-      const text     = 'MangaVerse';
+      const text     = 'Hibrna';
 
       ctx.font = `bold ${fontSize}px "Bebas Neue", "Arial", sans-serif`;
       ctx.textBaseline = 'bottom';
@@ -6838,7 +6828,7 @@ async function awardFirstRegBadge(uid){
       const badges = snap.data().badges||[];
       if(!badges.includes("first_reg")){
         await setDoc(doc(db,"users",uid),{ badges:[...badges,"first_reg"] },{ merge:true });
-        setTimeout(()=>showBadgeNotify({ icon:"🎉", name:"مرحباً بك!", desc:"أنشأت حسابك في MangaVerse" }),2000);
+        setTimeout(()=>showBadgeNotify({ icon:"🎉", name:"مرحباً بك!", desc:"أنشأت حسابك في Hibrna" }),2000);
       }
     }
   }catch(e){}
@@ -6962,7 +6952,17 @@ document.addEventListener('click', () => {
 });
 
 // ── تحميل إحصائيات من نحن ──
+// ✅ cache بسيط: لا نعيد الجلب إلا بعد 5 دقائق
+let _aboutStatsCache = null, _aboutStatsCacheTs = 0;
 async function loadAboutStats(){
+  const CACHE_TTL = 5 * 60 * 1000;
+  const fmt = n => n >= 1000 ? (n/1000).toFixed(1)+'K' : n.toString();
+  if(_aboutStatsCache && (Date.now() - _aboutStatsCacheTs) < CACHE_TTL){
+    const {totalWorks,totalUsers} = _aboutStatsCache;
+    const w=document.getElementById("about-stat-works"); if(w) w.textContent=fmt(totalWorks);
+    const u=document.getElementById("about-stat-users"); if(u) u.textContent=fmt(totalUsers);
+    return;
+  }
   try{
     const [worksSnap, usersSnap] = await Promise.all([
       getDocs(query(collection(db,"works"), limit(1000))),
@@ -6971,16 +6971,7 @@ async function loadAboutStats(){
     const totalWorks = worksSnap.size;
     const totalUsers = usersSnap.size;
     const totalViews = worksSnap.docs.reduce((s,d)=>s+(d.data().views||0),0);
-    const fmt = n => n >= 1000 ? (n/1000).toFixed(1)+'K' : n.toString();
+    _aboutStatsCache = {totalWorks,totalUsers,totalViews};
+    _aboutStatsCacheTs = Date.now();
     const w=document.getElementById("about-stat-works"); if(w) w.textContent=fmt(totalWorks);
-    const u=document.getElementById("about-stat-users"); if(u) u.textContent=fmt(totalUsers);
-    const v=document.getElementById("about-stat-views"); if(v) v.textContent=fmt(totalViews);
-  }catch(e){}
-}
-
-window._curPage='home';
-window._filterGenre='all';
-window._sliderIdx=0; window._sliderLen=0;
-</script>
-</body>
-</html>
+    const u=document.getEle
