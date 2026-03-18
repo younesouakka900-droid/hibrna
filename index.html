@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>حِبْرنا — منصة المانجا العربية</title>
+<title>حِبْرنا — منصة الإبداع العربي</title>
 <meta name="description" content="منصة المانجا والإبداع العربي — اقرأ وانشر وشارك أعمالك">
 <meta property="og:site_name" content="حِبْرنا">
 <meta property="og:type" content="website">
-<meta id="og-title" property="og:title" content="حِبْرنا — منصة المانجا العربية">
+<meta id="og-title" property="og:title" content="حِبْرنا — منصة الإبداع العربي">
 <meta id="og-desc" property="og:description" content="منصة المانجا والإبداع العربي">
 <meta id="og-image" property="og:image" content="">
 <meta id="og-url" property="og:url" content="">
@@ -2736,6 +2736,146 @@ function updateNavUI(on){
     const navAv=G("nav-av"); if(navAv){ navAv.style.backgroundImage="none"; navAv.textContent="☰"; }
   }
 }
+
+// ─── نظام النقاط والإنجازات ───
+const POINTS_CONFIG = {
+  publish_work:50, like_given:2, like_received:3,
+  comment:5, rating:4, read_work:1, daily_login:10,
+  follow_given:2, follow_received:5
+};
+const ACHIEVEMENTS = [
+  {id:"first_reg",key:"_always",target:1,icon:"🎉",name:"مرحباً بك!",desc:"أنشأت حسابك في حِبْرنا",shape:"circle",clr:"ach-green"},
+  {id:"first_pub",key:"worksCount",target:1,icon:"📖",name:"أول نشرة",desc:"نشرت أول عمل لك",shape:"circle",clr:"ach-blue"},
+  {id:"pub5",key:"worksCount",target:5,icon:"📚",name:"مكتبة صغيرة",desc:"نشرت 5 أعمال",shape:"pentagon",clr:"ach-purple"},
+  {id:"views100",key:"totalViews",target:100,icon:"👁",name:"مئة عين",desc:"حصلت على 100 مشاهدة",shape:"circle",clr:"ach-cyan"},
+  {id:"views1k",key:"totalViews",target:1000,icon:"🔥",name:"ألف مشاهدة",desc:"حصلت على 1000 مشاهدة",shape:"diamond",clr:"ach-orange"},
+  {id:"likes50",key:"totalLikes",target:50,icon:"❤️",name:"محبوب",desc:"حصلت على 50 إعجاب",shape:"circle",clr:"ach-red"},
+  {id:"followers10",key:"followers",target:10,icon:"⭐",name:"نجم صاعد",desc:"لديك 10 متابعين",shape:"pentagon",clr:"ach-gold"},
+];
+function calcPoints(data){
+  if(!data) return 0;
+  return (data.worksCount||0)*50+(data.totalViews||0)*1+(data.totalLikes||0)*3+(data.totalComments||0)*5+((Array.isArray(data.followers)?data.followers.length:0))*5;
+}
+function getLevelInfo(pts){
+  if(pts>=10000) return{name:"إله المانجا",ring:"ring-god",color:"#FF0080"};
+  if(pts>=5000)  return{name:"أسطورة",ring:"ring-myth",color:"#FFD700"};
+  if(pts>=2000)  return{name:"خالد",ring:"ring-immortal",color:"#FF0000"};
+  if(pts>=1000)  return{name:"بطل",ring:"ring-hero",color:"#9B30FF"};
+  if(pts>=500)   return{name:"نخبة",ring:"ring-elite",color:"#00D4FF"};
+  if(pts>=200)   return{name:"محارب",ring:"ring-warrior",color:"#FF6B35"};
+  if(pts>=50)    return{name:"متدرب",ring:"ring-student",color:"#00BCD4"};
+  if(pts>=10)    return{name:"قارئ",ring:"ring-reader",color:"#9E9E9E"};
+  return{name:"وافد جديد",ring:"ring-new",color:"#4CAF50"};
+}
+function getNameGlowClass(data){
+  if(!data) return '';
+  const pts=data.points||calcPoints(data);
+  if(data.isAdmin) return 'uname-admin';
+  if(pts>=5000) return 'uname-gold';
+  if(pts>=1000) return 'uname-diamond';
+  if(pts>=200)  return 'uname-silver';
+  if(pts>=50)   return 'uname-bronze';
+  return '';
+}
+function glowName(name,data){
+  const cls=getNameGlowClass(data);
+  return cls?`<span class="${cls}">${name}</span>`:name;
+}
+async function addPoints(uid,action){
+  const pts=POINTS_CONFIG[action]||0;
+  if(!pts||!uid) return;
+  try{ await setDoc(doc(db,"users",uid),{points:increment(pts)},{merge:true}); }catch(e){}
+}
+async function updateUserPoints(uid){
+  try{
+    const ws=await getDocs(query(collection(db,"works"),where("authorId","==",uid)));
+    const works=ws.docs.map(d=>d.data());
+    const pts=calcPoints({worksCount:works.length,totalViews:works.reduce((s,w)=>s+(w.views||0),0),totalLikes:works.reduce((s,w)=>s+(w.likes||0),0)});
+    await setDoc(doc(db,"users",uid),{points:pts},{merge:true});
+  }catch(e){}
+}
+function updateAvatarRing(pts){
+  const ring=document.getElementById('p-av-ring');
+  if(!ring) return;
+  const level=getLevelInfo(pts);
+  ring.className='p-av-ring '+level.ring;
+}
+function showBadgeNotify(badge){
+  const el=document.createElement('div');
+  el.className='badge-notify';
+  el.innerHTML=`<div style="font-size:2rem">${badge.icon}</div><div><div style="font-weight:800;font-size:.95rem">🏅 إنجاز جديد!</div><div style="font-weight:900;color:var(--gold)">${badge.name}</div><div style="font-size:.75rem;color:rgba(255,255,255,.6)">${badge.desc}</div></div>`;
+  document.body.appendChild(el);
+  setTimeout(()=>el.style.transform='translateX(-50%) translateY(0)',100);
+  setTimeout(()=>{el.style.transform='translateX(-50%) translateY(80px)';setTimeout(()=>el.remove(),400);},4000);
+}
+window.checkAndAwardBadges=async function(uid,userData){
+  const earned=userData.badges||[];
+  for(const ach of ACHIEVEMENTS){
+    if(earned.includes(ach.id)||ach.key==="_always") continue;
+    const val=ach.key==='followers'?(Array.isArray(userData.followers)?userData.followers.length:0):(userData[ach.key]||0);
+    if(val>=ach.target){
+      try{
+        const nb=[...earned,ach.id];
+        await setDoc(doc(db,"users",uid),{badges:nb},{merge:true});
+        showBadgeNotify(ach); earned.push(ach.id);
+      }catch(e){}
+    }
+  }
+};
+async function awardFirstRegBadge(uid){
+  try{
+    const snap=await getDoc(doc(db,"users",uid));
+    if(snap.exists()){
+      const badges=snap.data().badges||[];
+      if(!badges.includes("first_reg")){
+        await setDoc(doc(db,"users",uid),{badges:[...badges,"first_reg"]},{merge:true});
+        setTimeout(()=>showBadgeNotify({icon:"🎉",name:"مرحباً بك!",desc:"أنشأت حسابك في حِبْرنا"}),2000);
+      }
+    }
+  }catch(e){}
+}
+// ─── التقييم والتعليقات ───
+window.submitRating=async(workId,stars)=>{
+  if(!CU) return openModal('m-auth');
+  try{
+    const ref=doc(db,"works",workId);
+    const snap=await getDoc(ref);
+    if(!snap.exists()) return;
+    const ratings={...(snap.data().ratings||{})};
+    ratings[CU.uid]=stars;
+    const vals=Object.values(ratings);
+    const avg=vals.reduce((a,b)=>a+b,0)/vals.length;
+    await updateDoc(ref,{ratings,rating:Math.round(avg*10)/10,ratingCount:vals.length});
+    document.querySelectorAll('.rating-star').forEach((s,i)=>s.classList.toggle('active',i<stars));
+    toast(`⭐ قيّمت بـ ${stars} نجوم!`);
+  }catch(e){toast('❌ خطأ في التقييم','e');}
+};
+window.submitComment=async(workId)=>{
+  if(!CU) return openModal('m-auth');
+  const inp=G('comment-inp');
+  const text=inp?.value?.trim();
+  if(!text) return toast('⚠️ اكتب تعليقاً أولاً','w');
+  try{
+    await addDoc(collection(db,'comments'),{workId,text:sanitize(text),authorId:CU.uid,authorName:CU.displayName||'مستخدم',authorAvatar:CUD?.avatarUrl||'',createdAt:serverTimestamp()});
+    inp.value=''; toast('💬 تم نشر تعليقك!');
+    loadComments(workId);
+    await addPoints(CU.uid,'comment');
+  }catch(e){toast('❌ خطأ','e');}
+};
+window.loadComments=async(workId)=>{
+  const cont=G('comments-list');
+  if(!cont) return;
+  try{
+    const snap=await getDocs(query(collection(db,'comments'),where('workId','==',workId),orderBy('createdAt','desc'),limit(20)));
+    if(snap.empty){cont.innerHTML='<div style="color:rgba(255,255,255,.3);font-size:.85rem;padding:1rem 0">لا توجد تعليقات بعد 💬</div>';return;}
+    cont.innerHTML=snap.docs.map(d=>{
+      const c=d.data();
+      const av=c.authorAvatar?`<div style="width:32px;height:32px;border-radius:50%;background-image:url(${c.authorAvatar});background-size:cover;flex-shrink:0"></div>`:`<div style="width:32px;height:32px;border-radius:50%;background:var(--red);display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:800;flex-shrink:0">${(c.authorName||'?')[0]}</div>`;
+      return `<div style="display:flex;gap:.7rem;padding:.75rem 0;border-bottom:1px solid var(--br)">${av}<div style="flex:1"><div style="font-size:.8rem;font-weight:800;margin-bottom:.2rem">${sanitize(c.authorName||'')}</div><div style="font-size:.85rem;color:rgba(255,255,255,.75);line-height:1.5">${sanitize(c.text||'')}</div></div></div>`;
+    }).join('');
+  }catch(e){cont.innerHTML='<div style="color:rgba(255,255,255,.3);font-size:.85rem">❌ خطأ</div>';}
+};
+
 </script>
 
 <style>
@@ -3348,6 +3488,53 @@ footer a:hover{text-decoration:underline;}
   .stats-row{grid-template-columns:1fr 1fr;}
 }
 
+
+/* ══ نظام النقاط والإنجازات ══ */
+.badge-notify{position:fixed;bottom:5rem;left:50%;transform:translateX(-50%) translateY(80px);
+  background:rgba(15,15,25,.97);border:1px solid var(--gold);
+  border-radius:16px;padding:1rem 1.5rem;z-index:9999;
+  transition:transform .4s cubic-bezier(.34,1.56,.64,1);
+  display:flex;align-items:center;gap:.8rem;pointer-events:none;min-width:220px;
+  box-shadow:0 8px 32px rgba(0,0,0,.6),0 0 20px rgba(245,166,35,.2);}
+
+/* توهج الأسماء */
+.uname-bronze{color:#cd7f32!important;text-shadow:0 0 8px rgba(205,127,50,.4);}
+.uname-silver{background:linear-gradient(135deg,#c0c0c0,#e8e8e8,#a0a0a0)!important;
+  -webkit-background-clip:text!important;-webkit-text-fill-color:transparent!important;
+  background-clip:text!important;filter:drop-shadow(0 0 6px rgba(192,192,192,.5));}
+.uname-gold{background:linear-gradient(135deg,#f5a623,#f7d060,#e8821a)!important;
+  -webkit-background-clip:text!important;-webkit-text-fill-color:transparent!important;
+  background-clip:text!important;filter:drop-shadow(0 0 8px rgba(245,166,35,.6));
+  animation:goldShimmer 3s ease-in-out infinite;}
+@keyframes goldShimmer{0%,100%{filter:drop-shadow(0 0 6px rgba(245,166,35,.5))}50%{filter:drop-shadow(0 0 14px rgba(245,166,35,.9))}}
+.uname-diamond{background:linear-gradient(135deg,#667eea,#764ba2,#a78bfa,#60a5fa)!important;
+  background-size:200% 200%!important;-webkit-background-clip:text!important;
+  -webkit-text-fill-color:transparent!important;background-clip:text!important;
+  animation:diamondFlow 3s ease infinite;}
+@keyframes diamondFlow{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+.uname-admin{background:linear-gradient(135deg,#e8192c,#ff6b35,#e8192c)!important;
+  background-size:200% 200%!important;-webkit-background-clip:text!important;
+  -webkit-text-fill-color:transparent!important;background-clip:text!important;
+  animation:adminPulse 2s ease infinite;}
+@keyframes adminPulse{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+
+/* نظام التعليقات */
+#comment-inp{width:100%;background:rgba(255,255,255,.05);border:1px solid var(--br);
+  border-radius:10px;color:var(--w);font-family:'Tajawal';font-size:.9rem;
+  padding:.7rem 1rem;outline:none;resize:vertical;min-height:70px;
+  transition:border-color .2s;box-sizing:border-box;}
+#comment-inp:focus{border-color:var(--red);}
+.comment-submit-btn{background:var(--red);color:#fff;border:none;border-radius:10px;
+  padding:.6rem 1.5rem;font-family:'Tajawal';font-size:.9rem;font-weight:700;
+  cursor:pointer;margin-top:.5rem;transition:all .25s;}
+.comment-submit-btn:hover{box-shadow:0 0 16px rgba(232,25,44,.5);transform:translateY(-1px);}
+
+/* نجوم التقييم */
+.rating-stars{display:flex;gap:.3rem;margin:.5rem 0;flex-direction:row-reverse;justify-content:flex-end;}
+.rating-star{font-size:1.4rem;cursor:pointer;transition:transform .2s;color:rgba(255,255,255,.2);}
+.rating-star.active,.rating-star:hover,.rating-star:hover ~ .rating-star{color:var(--gold);}
+.rating-star:hover{transform:scale(1.2);}
+
 /* ════════ HIBRNA GLOW PACK ════════ */
 #mv-bg-glow{position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden;}
 #mv-bg-glow::before{content:'';position:absolute;width:600px;height:600px;border-radius:50%;background:radial-gradient(circle,rgba(232,25,44,.06) 0%,transparent 70%);top:-200px;right:-200px;animation:bgOrb1 18s ease-in-out infinite alternate;}
@@ -3376,9 +3563,119 @@ nav{backdrop-filter:blur(20px) saturate(1.5)!important;border-bottom:1px solid r
 .page.active{animation:pageIn .35s ease-out forwards;}
 @keyframes pageIn{from{opacity:.75;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
 /* ════════════════════════════════ */
+
+/* ════════════════════════════════════════════════
+   🔥 HIBRNA GLOW PACK — حِبْرنا تأثيرات متوهجة
+════════════════════════════════════════════════ */
+
+/* خلفية هالات كونية */
+#mv-bg-glow{position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden;}
+#mv-bg-glow::before{content:'';position:absolute;width:600px;height:600px;border-radius:50%;
+  background:radial-gradient(circle,rgba(232,25,44,.06) 0%,transparent 70%);
+  top:-200px;right:-200px;animation:bgOrb1 18s ease-in-out infinite alternate;}
+#mv-bg-glow::after{content:'';position:absolute;width:500px;height:500px;border-radius:50%;
+  background:radial-gradient(circle,rgba(123,47,255,.05) 0%,transparent 70%);
+  bottom:-200px;left:-200px;animation:bgOrb2 22s ease-in-out infinite alternate;}
+@keyframes bgOrb1{0%{transform:translate(0,0) scale(1)}100%{transform:translate(-60px,60px) scale(1.2)}}
+@keyframes bgOrb2{0%{transform:translate(0,0) scale(1)}100%{transform:translate(50px,-50px) scale(1.15)}}
+
+/* NAV متوهج */
+nav{backdrop-filter:blur(20px) saturate(1.5)!important;
+  border-bottom:1px solid rgba(232,25,44,.2)!important;
+  box-shadow:0 1px 0 rgba(232,25,44,.1),0 4px 20px rgba(0,0,0,.5)!important;}
+
+/* شعار متوهج */
+.logo-text{
+  background:linear-gradient(135deg,#fff 40%,#e8192c 100%)!important;
+  -webkit-background-clip:text!important;
+  -webkit-text-fill-color:transparent!important;
+  background-clip:text!important;
+  filter:drop-shadow(0 0 8px rgba(232,25,44,.35));
+  animation:logoGlow 3s ease-in-out infinite;
+}
+@keyframes logoGlow{
+  0%,100%{filter:drop-shadow(0 0 5px rgba(232,25,44,.3))}
+  50%{filter:drop-shadow(0 0 14px rgba(232,25,44,.75))}
+}
+
+/* زر النشر ناري */
+.nbtn-pub{
+  background:linear-gradient(135deg,#e8192c,#ff4500,#e8192c)!important;
+  background-size:200% 100%!important;
+  box-shadow:0 0 16px rgba(232,25,44,.45)!important;
+  animation:pubGlow 2.5s ease-in-out infinite!important;
+}
+@keyframes pubGlow{
+  0%,100%{box-shadow:0 0 14px rgba(232,25,44,.4)}
+  50%{box-shadow:0 0 28px rgba(232,25,44,.85),0 0 50px rgba(232,25,44,.25)}
+}
+
+/* بطاقات الأعمال */
+.work-card{transition:transform .3s cubic-bezier(.34,1.56,.64,1),box-shadow .3s ease!important;}
+.work-card:hover{
+  transform:translateY(-8px) scale(1.015)!important;
+  box-shadow:0 20px 50px rgba(0,0,0,.65),0 0 18px rgba(232,25,44,.2)!important;
+}
+.work-thumb img{transition:transform .45s ease!important;}
+.work-card:hover .work-thumb img{transform:scale(1.06)!important;}
+.work-card:hover .work-title{color:#fff!important;}
+
+/* تبويبات النوع */
+.ttab.active{
+  background:linear-gradient(135deg,#e8192c,#ff4500)!important;
+  box-shadow:0 0 18px rgba(232,25,44,.45),0 4px 12px rgba(232,25,44,.25)!important;
+  border-color:transparent!important;
+}
+
+/* بطاقات التصنيف */
+.genre-card{transition:transform .3s cubic-bezier(.34,1.56,.64,1),border-color .3s,box-shadow .3s!important;}
+.genre-card:hover{
+  transform:translateY(-5px) scale(1.04)!important;
+  border-color:rgba(232,25,44,.35)!important;
+  box-shadow:0 10px 28px rgba(0,0,0,.4),0 0 16px rgba(232,25,44,.12)!important;
+}
+.genre-card:hover .genre-card-icon{transform:scale(1.15)!important;display:inline-block;}
+
+/* صف المبدعين */
+.creator-row{transition:background .25s,transform .25s!important;border-radius:12px!important;}
+.creator-row:hover{background:rgba(232,25,44,.06)!important;transform:translateX(-3px)!important;}
+
+/* إحصائيات متوهجة */
+.stat-card .sv,.pstat-num{animation:svGlow 3s ease-in-out infinite;}
+@keyframes svGlow{
+  0%,100%{text-shadow:0 0 8px rgba(232,25,44,.3)}
+  50%{text-shadow:0 0 20px rgba(232,25,44,.7),0 0 36px rgba(232,25,44,.25)}
+}
+
+/* Manifesto */
+.manifesto-text em{text-shadow:0 0 16px rgba(232,25,44,.5),0 0 32px rgba(232,25,44,.2)!important;}
+
+/* أزرار رئيسية */
+.pbtn-p:hover,.hslide-btn-p:hover{
+  box-shadow:0 0 28px rgba(232,25,44,.7),0 6px 18px rgba(232,25,44,.35)!important;
+  transform:translateY(-2px)!important;
+}
+
+/* Scrollbar مخصص */
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-track{background:rgba(255,255,255,.02);}
+::-webkit-scrollbar-thumb{background:linear-gradient(180deg,rgba(232,25,44,.7),rgba(123,47,255,.5));border-radius:10px;}
+::-webkit-scrollbar-thumb:hover{background:linear-gradient(180deg,#e8192c,#7b2fff);}
+
+/* Page transition */
+.page.active{animation:pageIn .35s ease-out forwards;}
+@keyframes pageIn{from{opacity:.75;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+
+/* Light mode */
+body.light-mode #mv-bg-glow{display:none!important;}
+
+/* ═════════════════════════════════════════ */
 </style>
 </head>
 <body>
+<!-- 🌌 خلفية حِبْرنا -->
+<div id="mv-bg-glow" aria-hidden="true"></div>
+
 <div id="mv-bg-glow" aria-hidden="true"></div>
 
 <!-- Hidden file inputs -->
@@ -3463,7 +3760,26 @@ nav{backdrop-filter:blur(20px) saturate(1.5)!important;border-bottom:1px solid r
       <input class="mi" id="r-pass" type="password" placeholder="كلمة المرور (6 أحرف على الأقل)">
       <button class="msub" id="btn-reg" onclick="doRegister()">🚀 إنشاء الحساب</button>
     </div>
-  </div>
+  
+    <!-- قسم التقييم -->
+    <div style="margin-top:1.2rem;padding-top:1rem;border-top:1px solid var(--br)">
+      <div style="font-size:.82rem;font-weight:800;color:var(--mu);margin-bottom:.5rem">⭐ قيّم هذا العمل</div>
+      <div class="rating-stars" id="work-rating-stars">
+        <span class="rating-star" onclick="submitRating(window._wd?.id,1)">★</span>
+        <span class="rating-star" onclick="submitRating(window._wd?.id,2)">★</span>
+        <span class="rating-star" onclick="submitRating(window._wd?.id,3)">★</span>
+        <span class="rating-star" onclick="submitRating(window._wd?.id,4)">★</span>
+        <span class="rating-star" onclick="submitRating(window._wd?.id,5)">★</span>
+      </div>
+    </div>
+    <!-- قسم التعليقات -->
+    <div style="margin-top:1.2rem;padding-top:1rem;border-top:1px solid var(--br)">
+      <div style="font-size:.82rem;font-weight:800;color:var(--mu);margin-bottom:.8rem">💬 التعليقات</div>
+      <div id="comments-list" style="margin-bottom:1rem;max-height:200px;overflow-y:auto"></div>
+      <textarea id="comment-inp" placeholder="اكتب تعليقك هنا..."></textarea>
+      <button class="comment-submit-btn" onclick="submitComment(window._wd?.id)">💬 نشر التعليق</button>
+    </div>
+</div>
 </div>
 
 <!-- DELETE ACCOUNT MODAL -->
@@ -3912,7 +4228,7 @@ nav{backdrop-filter:blur(20px) saturate(1.5)!important;border-bottom:1px solid r
     <a class="sb-link" onclick="closeSidebar();showPage('home');setTimeout(()=>G('browse-sec')?.scrollIntoView({behavior:'smooth'}),100)">🔍 تصفح الأعمال</a>
     <a class="sb-link" id="sb-library-link" onclick="closeSidebar();showPage('library')" style="display:none">📚 مكتبتي</a>
     <a class="sb-link" id="sb-profile-link" onclick="closeSidebar();showPage('profile')" style="display:none">👤 ملفي الشخصي</a>
-    <a class="sb-link" href="https://mahbarat-alkhiyal.com" target="_blank" onclick="closeSidebar()">✦ محبرة الخيال</a>
+    <a class="sb-link" href="https://mahbarat-alkhiyal.com" target="_blank" onclick="closeSidebar()">✦ مجتمع حِبْرنا</a>
     <a class="sb-link sb-admin-link" id="sb-admin-link" onclick="closeSidebar();window.openAdminDashboard()" style="display:none">⚙️ لوحة الإدارة</a>
   </div>
 
@@ -4182,7 +4498,7 @@ nav{backdrop-filter:blur(20px) saturate(1.5)!important;border-bottom:1px solid r
   <footer>
     <p>© 2025 حِبْرنا — صُنع بـ ❤️ للمبدعين العرب | YOUNES OUAKKA</p>
     <p style="margin-top:.5rem">
-      <a href="https://mahbarat-alkhiyal.com" target="_blank">✦ محبرة الخيال — مجتمع المبدعين العرب</a>
+      <a href="https://mahbarat-alkhiyal.com" target="_blank">✦ مجتمع حِبْرنا — مجتمع المبدعين العرب</a>
     </p>
   </footer>
 </div>
