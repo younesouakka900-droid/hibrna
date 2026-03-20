@@ -2,6 +2,9 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>MangaVerse — منصة المانجا العربية</title>
 <meta name="description" content="منصة المانجا والإبداع العربي — اقرأ وانشر وشارك أعمالك">
@@ -33,7 +36,6 @@ const FB = { apiKey:"AIzaSyAzRxV19fXvYjY_3LSmW2LVnIYrCbkaVOk", authDomain:"manga
 const app  = initializeApp(FB);
 const auth = getAuth(app);
 const db   = getFirestore(app);
-let _currentChapterId = null; // تعليقات الفصول
 
 // ─── Supabase Storage Upload ───
 const SUPA_URL  = "https://ahmnycfbfonmztxmwqdi.supabase.co";
@@ -1100,9 +1102,6 @@ let _readerSaveTimer = null;
 let _readerWork = null;
 
 window.openReader=async w=>{
-  _currentChapterId = w.id || null;
-  G("reader-comments-wrap").style.display = "none";
-  if(w.id){ G("reader-comment-count").textContent = "0"; loadCommentCount(w.id); }
   const rd=G("reader-page");
   const cnt=G("reader-content");
   const title=G("reader-title");
@@ -1355,174 +1354,6 @@ async function _renderPdfScroll(){
   if(nav) nav.style.display = "none";
 }
 
-// ─── تعليقات الفصول ───
-
-window.toggleReaderComments = () => {
-  const wrap = G("reader-comments-wrap");
-  const isVisible = wrap.style.display !== "none";
-  if(isVisible){ wrap.style.display = "none"; return; }
-  wrap.style.display = "block";
-  wrap.scrollIntoView({behavior:"smooth"});
-  loadChapterComments();
-  // إظهار حقل الكتابة
-  if(CU){
-    G("reader-comment-input-wrap").style.display = "block";
-    G("reader-comment-login-prompt").style.display = "none";
-  } else {
-    G("reader-comment-input-wrap").style.display = "none";
-    G("reader-comment-login-prompt").style.display = "block";
-  }
-};
-
-window.loadChapterComments = async () => {
-  if(!_currentChapterId) return;
-  const list = G("reader-comments-list");
-  list.innerHTML = "";
-  const loading = document.createElement("div");
-  loading.style.cssText = "text-align:center;color:rgba(255,255,255,.3);font-size:.85rem;padding:1rem";
-  loading.textContent = "⏳ جاري التحميل...";
-  list.appendChild(loading);
-  try {
-    const snap = await getDocs(query(
-      collection(db, "chapterComments"),
-      where("chapterId", "==", _currentChapterId),
-      orderBy("createdAt", "desc"),
-      limit(50)
-    ));
-    const btn = G("reader-comment-count");
-    if(btn) btn.textContent = snap.size;
-    list.innerHTML = "";
-    if(snap.empty){
-      const empty = document.createElement("div");
-      empty.style.cssText = "text-align:center;color:rgba(255,255,255,.25);font-size:.85rem;padding:2rem";
-      empty.textContent = "لا يوجد تعليقات بعد — كن أول من يعلّق! 🌟";
-      list.appendChild(empty);
-      return;
-    }
-    snap.forEach(d => {
-      const c = d.data();
-      const time = c.createdAt?.toDate ? c.createdAt.toDate().toLocaleDateString("ar-SA") : "";
-      const isOwn = CU && c.userId === CU.uid;
-      const div = document.createElement("div");
-      div.style.cssText = "background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:.75rem 1rem;";
-      
-      // صف العنوان
-      const header = document.createElement("div");
-      header.style.cssText = "display:flex;align-items:center;justify-content:space-between;margin-bottom:.4rem";
-      
-      const userInfo = document.createElement("div");
-      userInfo.style.cssText = "display:flex;align-items:center;gap:.5rem";
-      
-      const avatar = document.createElement("div");
-      avatar.style.cssText = "width:28px;height:28px;border-radius:50%;background:var(--red);display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:800;color:#fff;flex-shrink:0";
-      avatar.textContent = (c.userName||"؟")[0];
-      
-      const name = document.createElement("span");
-      name.style.cssText = "font-size:.85rem;font-weight:700;color:#f0f0f0";
-      name.textContent = c.userName||"مجهول";
-      
-      const timeEl = document.createElement("span");
-      timeEl.style.cssText = "font-size:.72rem;color:rgba(255,255,255,.3)";
-      timeEl.textContent = time;
-      
-      userInfo.appendChild(avatar);
-      userInfo.appendChild(name);
-      userInfo.appendChild(timeEl);
-      header.appendChild(userInfo);
-      
-      if(isOwn){
-        const delBtn = document.createElement("button");
-        delBtn.style.cssText = "background:none;border:none;color:rgba(255,50,50,.5);font-size:.8rem;cursor:pointer";
-        delBtn.textContent = "🗑";
-        delBtn.onclick = () => deleteChapterComment(d.id);
-        header.appendChild(delBtn);
-      }
-      
-      // نص التعليق
-      const txt = document.createElement("p");
-      txt.style.cssText = "margin:.4rem 0;font-size:.88rem;color:rgba(255,255,255,.8);line-height:1.6;direction:rtl";
-      txt.textContent = c.text||"";
-      
-      // زر الإعجاب
-      const likeRow = document.createElement("div");
-      likeRow.style.cssText = "display:flex;align-items:center;gap:.5rem;margin-top:.5rem";
-      const likeBtn = document.createElement("button");
-      likeBtn.style.cssText = "background:none;border:none;color:rgba(255,255,255,.4);font-size:.8rem;cursor:pointer;padding:0";
-      likeBtn.innerHTML = "❤️ " + (c.likes||0);
-      likeBtn.onclick = () => likeChapterComment(d.id, likeBtn);
-      likeRow.appendChild(likeBtn);
-      
-      div.appendChild(header);
-      div.appendChild(txt);
-      div.appendChild(likeRow);
-      list.appendChild(div);
-    });
-  } catch(e) {
-    list.innerHTML = "";
-    const err = document.createElement("div");
-    err.style.cssText = "text-align:center;color:rgba(255,100,100,.6);font-size:.85rem;padding:1rem";
-    err.textContent = "❌ تعذّر تحميل التعليقات";
-    list.appendChild(err);
-  }
-};
-
-window.submitChapterComment = async () => {
-  if(!CU) return openModal("m-auth");
-  if(!_currentChapterId) return;
-  const inp = G("reader-comment-input");
-  const text = inp.value.trim();
-  if(!text) return toast("⚠️ اكتب تعليقاً أولاً","w");
-  if(text.length > 500) return toast("⚠️ التعليق طويل جداً (500 حرف كحد أقصى)","w");
-  try {
-    await addDoc(collection(db, "chapterComments"), {
-      chapterId: _currentChapterId,
-      workId: window._wid || "",
-      userId: CU.uid,
-      userName: CU.displayName || "مجهول",
-      text,
-      likes: 0,
-      likedBy: [],
-      createdAt: serverTimestamp()
-    });
-    inp.value = "";
-    toast("✅ تم نشر تعليقك!");
-    loadChapterComments();
-  } catch(e) { toast("❌ فشل النشر: "+e.message,"e"); }
-};
-
-window.deleteChapterComment = async (cid) => {
-  if(!confirm("حذف التعليق؟")) return;
-  try {
-    await deleteDoc(doc(db,"chapterComments",cid));
-    toast("🗑 تم الحذف");
-    loadChapterComments();
-  } catch(e) { toast("❌ فشل الحذف","e"); }
-};
-
-window.likeChapterComment = async (cid, btn) => {
-  if(!CU) return openModal("m-auth");
-  try {
-    const ref2 = doc(db,"chapterComments",cid);
-    const snap = await getDoc(ref2);
-    if(!snap.exists()) return;
-    const likedBy = snap.data().likedBy || [];
-    if(likedBy.includes(CU.uid)){
-      await updateDoc(ref2, {likes: increment(-1), likedBy: arrayRemove(CU.uid)});
-    } else {
-      await updateDoc(ref2, {likes: increment(1), likedBy: arrayUnion(CU.uid)});
-    }
-    loadChapterComments();
-  } catch(e) {}
-};
-
-// تحميل عدد التعليقات عند فتح فصل
-async function loadCommentCount(chapterId) {
-  try {
-    const snap = await getDocs(query(collection(db,"chapterComments"), where("chapterId","==",chapterId)));
-    const btn = G("reader-comment-count");
-    if(btn) btn.textContent = snap.size;
-  } catch(e) {}
-}
 
 window.closePdfViewer = () => {
   G("pdf-viewer-page").style.display = "none";
@@ -1851,10 +1682,6 @@ window.openChapters = async (workId) => {
 
 // فتح قارئ فصل معين
 window.openChapterReader = async (workId, idx) => {
-  _currentChapterId = `${workId}_ch${idx}`;
-  G("reader-comments-wrap").style.display = "none";
-  G("reader-comment-count").textContent = "0";
-  loadCommentCount(_currentChapterId);
   const ch = window._currentChapters[idx];
   if(!ch) return;
   window._currentChapterIdx = idx;
@@ -4497,10 +4324,6 @@ body.light-mode .social-input-wrap{background:rgba(0,0,0,.03);}
 
 /* READER */
 #reader-page{display:none;position:fixed;inset:0;background:#000;z-index:9999;flex-direction:column;overflow:hidden;}
-#reader-comments-wrap::-webkit-scrollbar{width:4px;}
-#reader-comments-wrap::-webkit-scrollbar-track{background:rgba(255,255,255,.04);}
-#reader-comments-wrap::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:4px;}
-#reader-comment-input:focus{outline:none;border-color:rgba(232,25,44,.5);}
 .reader-nav{height:56px;background:rgba(8,8,15,.95);border-bottom:1px solid var(--br);display:flex;align-items:center;justify-content:space-between;padding:0 1.5rem;flex-shrink:0;}
 .reader-nav h3{font-size:1rem;font-weight:700;}
 .reader-close{background:var(--red);border:none;color:#fff;width:36px;height:36px;border-radius:8px;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center;}
@@ -5000,7 +4823,6 @@ body.light-mode .stab:hover{color:var(--red);}
     <h3 id="reader-title">القارئ</h3>
     <div style="display:flex;align-items:center;gap:.8rem">
       <span id="reader-progress-lbl" style="font-size:.78rem;color:rgba(255,255,255,.5);font-weight:700"></span>
-      <button onclick="toggleReaderComments()" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:#f0f0f0;border-radius:10px;padding:.35rem .8rem;font-size:.82rem;cursor:pointer;font-family:'Tajawal'" id="reader-comment-btn">💬 <span id="reader-comment-count">0</span></button>
       <button class="reader-close" onclick="closeReader()" aria-label="إغلاق القارئ">✕</button>
     </div>
   </div>
@@ -5018,26 +4840,7 @@ body.light-mode .stab:hover{color:var(--red);}
     <span style="color:var(--red);font-size:.8rem;font-weight:800">←</span>
   </div>
   <div id="reader-content"></div>
-  
-  <!-- قسم التعليقات في أسفل القارئ -->
-  <div id="reader-comments-wrap" style="display:none;background:#0d0d18;border-top:1px solid rgba(255,255,255,.08);padding:1rem;max-height:60vh;overflow-y:auto;">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
-      <h3 style="font-family:'Rajdhani';font-size:1.1rem;color:#f0f0f0;margin:0">💬 تعليقات الفصل</h3>
-      <button onclick="G('reader-comments-wrap').style.display='none'" style="background:none;border:none;color:rgba(255,255,255,.4);font-size:1.2rem;cursor:pointer">✕</button>
-    </div>
-    <!-- إضافة تعليق -->
-    <div id="reader-comment-input-wrap" style="display:none;margin-bottom:1rem">
-      <textarea id="reader-comment-input" placeholder="اكتب تعليقك..." style="width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:12px;color:#f0f0f0;font-family:'Tajawal';font-size:.9rem;padding:.75rem;resize:none;min-height:80px;box-sizing:border-box;direction:rtl"></textarea>
-      <button onclick="submitChapterComment()" style="margin-top:.5rem;background:var(--red);border:none;color:#fff;padding:.6rem 1.5rem;border-radius:10px;font-family:'Tajawal';font-size:.9rem;cursor:pointer;font-weight:700;width:100%">📨 نشر التعليق</button>
-    </div>
-    <div id="reader-comment-login-prompt" style="display:none;text-align:center;padding:.75rem;background:rgba(232,25,44,.08);border-radius:10px;margin-bottom:1rem">
-      <span style="color:rgba(255,255,255,.6);font-size:.88rem">سجّل دخولك للتعليق</span>
-      <button onclick="closeReader();openModal('m-auth')" style="margin-right:.5rem;background:var(--red);border:none;color:#fff;padding:.3rem .9rem;border-radius:8px;font-family:'Tajawal';font-size:.82rem;cursor:pointer">دخول</button>
-    </div>
-    <div id="reader-comments-list" style="display:flex;flex-direction:column;gap:.75rem">
-      <div style="text-align:center;color:rgba(255,255,255,.3);font-size:.85rem;padding:1rem">⏳ جاري تحميل التعليقات...</div>
-    </div>
-  </div>
+
 </div>
 
 <!-- AUTH MODAL -->
