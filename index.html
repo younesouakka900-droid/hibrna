@@ -33,7 +33,6 @@ const FB = { apiKey:"AIzaSyAzRxV19fXvYjY_3LSmW2LVnIYrCbkaVOk", authDomain:"manga
 const app  = initializeApp(FB);
 const auth = getAuth(app);
 const db   = getFirestore(app);
-window._db = db; // للوصول من closeModal
 
 // ─── Supabase Storage Upload ───
 const SUPA_URL  = "https://ahmnycfbfonmztxmwqdi.supabase.co";
@@ -300,37 +299,7 @@ window.doGoogleLogin = async () => {
   setBL("btn-google",false);
 };
 
-// ─── حذف الحساب ───
-window.deleteAccount = async () => {
-  if(!CU) return;
-  const confirmed = confirm("\u26a0\ufe0f هل أنت متأكد من حذف حسابك؟\nلا يمكن التراجع عن هذا الإجراء!");
-  if(!confirmed) return;
-  const confirm2 = prompt('اكتب "احذف حسابي" للتأكيد:');
-  if(confirm2 !== "احذف حسابي") return toast("❌ لم يتم التأكيد — الحذف ملغى","e");
-
-  setBL("btn-delete-account", true);
-  try {
-    const uid = CU.uid;
-    // حذف بيانات Firestore
-    await deleteDoc(doc(db,"users",uid)).catch(()=>{});
-    // حذف الإشعارات
-    const nSnap = await getDocs(query(collection(db,"notifications"), where("toUid","==",uid)));
-    await Promise.all(nSnap.docs.map(d => deleteDoc(d.ref))).catch(()=>{});
-    // حذف تقدم القراءة
-    const rSnap = await getDocs(query(collection(db,"readProgress")));
-    // حذف حساب Firebase Auth
-    await CU.delete();
-    toast("✅ تم حذف حسابك بنجاح");
-    showPage("home");
-  } catch(e) {
-    if(e.code === "auth/requires-recent-login"){
-      toast("⚠️ يجب تسجيل الدخول من جديد قبل حذف الحساب — سجّل خروجاً ثم دخولاً وأعد المحاولة","w");
-    } else {
-      toast("❌ خطأ: " + e.message, "e");
-    }
-  }
-  setBL("btn-delete-account", false);
-};
+// ─── حذف الحساب (تعريف كامل في قسم الملف الشخصي أدناه) ───
 
 window.doLogout=async()=>{
   await signOut(auth);
@@ -641,31 +610,6 @@ function _updateLoadMoreBtn(show){
   G("works-grid").insertAdjacentElement("afterend", wrap);
 }
 
-// ─── Live Reading: تحديث بطاقات القراء كل 30 ثانية ───
-async function updateLiveReadersOnCards(){
-  try{
-    const cards = document.querySelectorAll('.live-reading[id^="live-"]');
-    if(!cards.length) return;
-    const ids = Array.from(cards).map(el => el.id.replace('live-',''));
-    const now = Date.now();
-    await Promise.all(ids.map(async id => {
-      try{
-        const snap = await getDoc(doc(db,"liveReaders",id));
-        const readers = snap.exists() ? snap.data().readers || {} : {};
-        const active = Object.values(readers).filter(t => (now-t) < 3*60*1000).length;
-        const el = document.getElementById(`live-${id}`);
-        if(el){
-          const span = el.querySelector("span");
-          if(span) span.textContent = `${active} يقرأ الآن`;
-          el.classList.toggle("has-readers", active > 0);
-        }
-      }catch(_){}
-    }));
-  }catch(_){}
-}
-// شغّل كل 30 ثانية
-setInterval(updateLiveReadersOnCards, 30000);
-
 // ─── HERO SLIDER ───
 window.loadHeroSlider=async()=>{
   const wrap=G("hero-slider");
@@ -796,7 +740,6 @@ function workCard(w){
         <button class="work-bk-btn ${isBookmarked?"bk-active":""}" onclick="event.stopPropagation();toggleBookmark('${w.id}')">🔖</button>
       </div>
       <button class="wc-share-btn" onclick="shareWork(event,'${w.id}','${escapedTitle}')" title="مشاركة الرابط">🔗</button>
-      <div class="live-reading" id="live-${w.id}"><div class="live-dot"></div><span>0 يقرأ الآن</span></div>
     </div>
     <div class="work-title">${safeTitle} ${w.authorVerified?'<span class="vbadge-sm">✦</span>':''}</div>
     <div class="work-meta">
@@ -835,47 +778,6 @@ window.openWork=async id=>{
     updateDoc(doc(db,"works",id),{views:increment(1)}),
     w.authorId ? setDoc(doc(db,"users",w.authorId),{totalViews:increment(1)},{merge:true}) : Promise.resolve()
   ]).catch(()=>{});
-
-  // 🔥 Live Reading: سجّل القارئ الحالي
-  window._liveWorkId = id;
-  const _liveRef = doc(db,"liveReaders",id);
-  const _readerId = CU ? CU.uid : ("guest_"+Math.random().toString(36).slice(2));
-  window._liveReaderId = _readerId;
-  setDoc(_liveRef, { [`readers.${_readerId}`]: Date.now() }, { merge:true }).catch(()=>{});
-  // دالة async لحذف القارئ عند الإغلاق — يُستدعى من closeModal العادية
-  window._removeLiveReader = async () => {
-    if(!window._liveWorkId || !window._liveReaderId) return;
-    try{
-      const { deleteField } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
-      await updateDoc(doc(db,"liveReaders",window._liveWorkId),{
-        ["readers."+window._liveReaderId]: deleteField()
-      });
-    }catch(_){}
-    window._liveWorkId = null;
-    window._liveReaderId = null;
-  };
-
-  // مستمع فوري لعدد القراء في modal العمل
-  if(window._liveUnsub){ window._liveUnsub(); window._liveUnsub=null; }
-  window._liveUnsub = onSnapshot(_liveRef, snap => {
-    if(!snap.exists()) return;
-    const readers = snap.data().readers || {};
-    const now = Date.now();
-    // القراء النشطون: آخر 3 دقائق
-    const active = Object.values(readers).filter(t => (now - t) < 3 * 60 * 1000).length;
-    const el = document.getElementById("wm-live-count");
-    if(el){
-      el.textContent = active > 0 ? `🔴 ${active} يقرأ الآن` : "";
-      el.style.display = active > 0 ? "inline-flex" : "none";
-    }
-    // تحديث البطاقة في الخلفية
-    const cardLive = document.getElementById(`live-${id}`);
-    if(cardLive){
-      const span = cardLive.querySelector("span");
-      if(span) span.textContent = `${active} يقرأ الآن`;
-      cardLive.classList.toggle("has-readers", active > 0);
-    }
-  });
 
   G("wm-cover").innerHTML=w.coverUrl
     ?`<img src="${w.coverUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:12px;">`
@@ -3064,93 +2966,14 @@ async function addPoints(uid, action, sourceEl=null){
     if(snap.exists()) window._checkAndAwardBadges(uid, snap.data());
   }catch(e){}
 }
+window.addPoints = addPoints; // تصدير للـ Script 2
 
+// _checkAndAwardBadges → مجرد alias للدالة الكاملة المعرّفة لاحقاً
 window._checkAndAwardBadges = async function(uid, userData){
-  const earned = userData.badges || [];
-  const ACHIEVEMENTS_IDS = window._ACHIEVEMENTS || [];
-  for(const ach of ACHIEVEMENTS_IDS){
-    if(earned.includes(ach.id)) continue;
-    if(ach.key === "_always") continue;
-    const val = userData[ach.key]||0;
-    if(val >= ach.target){
-      try{
-        const newBadges = [...earned, ach.id];
-        await setDoc(doc(db,"users",uid),{ badges: newBadges },{ merge:true });
-        showBadgeNotify({ icon: ach.icon, name: ach.name, desc: ach.desc });
-        earned.push(ach.id);
-      }catch(e){}
-    }
-  }
+  return window.checkAndAwardBadges(uid, userData);
 };
 
-window.toggleLike = async function(workId){
-  if(!CU) return toast("⚠️ سجّل دخولك أولاً","w");
-  const btn = document.getElementById("wm-like-btn");
-  const uid = CU.uid;
-  try{
-    const wRef = doc(db,"works",workId);
-    const wSnap = await getDoc(wRef);
-    if(!wSnap.exists()) return;
-    const w = wSnap.data();
-    const likedBy = w.likedBy || [];
-    const alreadyLiked = likedBy.includes(uid);
-    if(alreadyLiked){
-      await updateDoc(wRef,{
-        likedBy: likedBy.filter(id=>id!==uid),
-        likes: Math.max((w.likes||1)-1, 0)
-      });
-      if(btn){ btn.classList.remove("liked"); btn.textContent = `❤️ إعجاب`; }
-    } else {
-      await updateDoc(wRef,{
-        likedBy: [...likedBy, uid],
-        likes: (w.likes||0) + 1
-      });
-      if(btn){
-        btn.classList.add("liked","pop");
-        setTimeout(()=>btn.classList.remove("pop"),300);
-        btn.textContent = `❤️ أعجبني`;
-      }
-      await addPoints(uid, "like_given", btn);
-      if(w.authorId && w.authorId !== uid){
-        await setDoc(doc(db,"users",w.authorId),{
-          totalLikes: increment(1),
-          points: increment(POINTS_CONFIG.like_received)
-        },{ merge:true });
-        const authorSnap = await getDoc(doc(db,"users",w.authorId));
-        if(authorSnap.exists()) window._checkAndAwardBadges(w.authorId, authorSnap.data());
-      }
-    }
-    const updated = await getDoc(wRef);
-    const uw = updated.data();
-    const viewsEl = document.getElementById("wm-views");
-    if(viewsEl) viewsEl.textContent = `👁 ${uw.views||0}  ❤️ ${uw.likes||0}  🔖 ${uw.bookmarkCount||0}`;
-  }catch(e){ toast("❌ حدث خطأ: "+e.message,"e"); }
-};
-
-window.updateLikeBtn = async function(id){
-  if(!CU) return;
-  try{
-    const wSnap = await getDoc(doc(db,"works",id));
-    if(!wSnap.exists()) return;
-    const likedBy = wSnap.data().likedBy || [];
-    const likes = wSnap.data().likes || 0;
-    const btn = document.getElementById("wm-like-btn");
-    if(btn){
-      if(likedBy.includes(CU.uid)){
-        btn.classList.add("liked"); btn.textContent = `❤️ أعجبني (${likes})`;
-      } else {
-        btn.classList.remove("liked"); btn.textContent = `❤️ إعجاب (${likes})`;
-      }
-    }
-    Promise.all([
-      addPoints(CU.uid, "read_work"),
-      setDoc(doc(db,"users",CU.uid),{ worksRead: increment(1) },{ merge:true })
-    ]).then(async()=>{
-      const updated = await getDoc(doc(db,"users",CU.uid));
-      if(updated.exists()) window._checkAndAwardBadges(CU.uid, updated.data());
-    }).catch(()=>{});
-  }catch(e){}
-};
+// toggleLike و updateLikeBtn معرّفتان في القسم الأسفل (الإصدار الكامل)
 
 async function checkDailyLogin(){
   if(!CU) return;
@@ -3183,6 +3006,31 @@ async function awardFirstRegBadge(uid){
     }
   }catch(e){}
 }
+
+// ═══════════════════════════════════════════════════════
+// ─── تصدير المتغيرات الضرورية إلى window ──────────────
+// حتى يستطيع الكود خارج الـ module استخدامها
+// ═══════════════════════════════════════════════════════
+window._db          = db;
+window._auth        = auth;
+window._doc         = doc;
+window._getDoc      = getDoc;
+window._getDocs     = getDocs;
+window._setDoc      = setDoc;
+window._updateDoc   = updateDoc;
+window._deleteDoc   = deleteDoc;
+window._addDoc      = addDoc;
+window._collection  = collection;
+window._query       = query;
+window._where       = where;
+window._orderBy     = orderBy;
+window._limit       = limit;
+window._increment   = increment;
+window._serverTimestamp = serverTimestamp;
+window._arrayUnion  = arrayUnion;
+window._arrayRemove = arrayRemove;
+window.POINTS_CONFIG = POINTS_CONFIG;
+window._showBadgeNotify = showBadgeNotify;
 
 </script>
 
@@ -4716,40 +4564,6 @@ footer a:hover{text-decoration:underline;}
 .upload-tip-icon{font-size:1rem;flex-shrink:0;margin-top:.1rem;}
 
 /* ══ بطاقة قريباً ══ */
-/* ══ LIVE READING INDICATOR ══ */
-.live-reading{
-  position:absolute;bottom:8px;left:8px;
-  display:flex;align-items:center;gap:4px;
-  background:rgba(8,8,15,.85);
-  border:1px solid rgba(232,25,44,.4);
-  backdrop-filter:blur(6px);
-  border-radius:20px;
-  padding:3px 8px;
-  font-size:.65rem;
-  font-weight:800;
-  color:#fff;
-  z-index:2;
-  opacity:0;
-  transform:translateY(4px);
-  transition:opacity .3s, transform .3s;
-  pointer-events:none;
-}
-.live-reading.has-readers{
-  opacity:1;
-  transform:translateY(0);
-}
-.live-dot{
-  width:6px;height:6px;
-  background:#e8192c;
-  border-radius:50%;
-  flex-shrink:0;
-  animation:livePulse 1.2s ease-in-out infinite;
-}
-@keyframes livePulse{
-  0%,100%{transform:scale(1);opacity:1;box-shadow:0 0 0 0 rgba(232,25,44,.6)}
-  50%{transform:scale(1.3);opacity:.8;box-shadow:0 0 0 4px rgba(232,25,44,0)}
-}
-.work-card:hover .live-reading.has-readers{opacity:1;}
 .work-card.coming-soon-card{position:relative;overflow:hidden;}
 .work-card.coming-soon-card::before{content:'';position:absolute;inset:0;background:rgba(8,8,15,.5);z-index:1;}
 .cs-badge{position:absolute;top:.6rem;right:.6rem;z-index:2;
@@ -4880,6 +4694,8 @@ body.light-mode .stab:hover{color:var(--red);}
 <meta name="theme-color" content="#e8192c">
 <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/younesouakka900-droid/%D8%B9%D8%A7%D9%84%D9%85-%D8%A7%D9%84%D9%85%D8%A7%D9%86%D8%AC%D8%A7/main/favicon.png">
 <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/younesouakka900-droid/%D8%B9%D8%A7%D9%84%D9%85-%D8%A7%D9%84%D9%85%D8%A7%D9%86%D8%AC%D8%A7/main/favicon.png">
+<!-- Adsterra Popunder -->
+<script src="https://pl28904726.effectivegatecpm.com/19/00/e9/1900e90ceb43c783f1f16564730d8229.js"></script>
 </head>
 <body>
 
@@ -5259,7 +5075,6 @@ body.light-mode .stab:hover{color:var(--red);}
           <span id="wm-author"></span>&nbsp;•&nbsp;<span id="wm-genre"></span>
         </div>
         <div style="font-size:.8rem;color:var(--mu);margin-bottom:.8rem" id="wm-views"></div>
-        <div id="wm-live-count" style="display:none;align-items:center;gap:5px;background:rgba(232,25,44,.1);border:1px solid rgba(232,25,44,.35);border-radius:20px;padding:3px 10px;font-size:.75rem;font-weight:800;color:var(--red);margin-bottom:.8rem;width:fit-content"></div>
         <div class="wm-desc-box" id="wm-desc"></div>
         <div class="stars-row">
           <div id="wm-stars"></div>
@@ -5542,7 +5357,7 @@ body.light-mode .stab:hover{color:var(--red);}
         <div style="background:var(--s2);border:1px solid var(--br);border-radius:12px;padding:1.3rem;text-align:center;margin-top:1rem;">
           <p style="font-weight:800;font-size:.95rem;margin-bottom:.4rem">📧 تواصل مع الإدارة</p>
           <p style="font-size:.83rem;color:var(--mu);margin-bottom:.7rem">إذا كنت صاحب حقوق ملكية وتجد محتوى منتهكاً، تواصل معنا فوراً.</p>
-          <a href="/cdn-cgi/l/email-protection#671e0812090614140812060c0c0627000a060e0b4904080a" style="color:var(--red);font-weight:700;font-size:.88rem"><span class="__cf_email__" data-cfemail="7900160c17180a0a160c18121218391e14181015571a1614">[email&#160;protected]</span></a>
+          <a href="/cdn-cgi/l/email-protection#e29b8d978c8391918d9783898983a2858f838b8ecc818d8f" style="color:var(--red);font-weight:700;font-size:.88rem"><span class="__cf_email__" data-cfemail="3b42544e555a4848544e5a50505a7b5c565a525715585456">[email&#160;protected]</span></a>
         </div>
       </div>
     </div>
@@ -5672,7 +5487,7 @@ body.light-mode .stab:hover{color:var(--red);}
       <div style="font-size:1.5rem;margin-bottom:.5rem">📬</div>
       <div style="font-weight:800;font-size:1rem;margin-bottom:.4rem">تواصل معنا</div>
       <p>هل لديك اقتراح أو تريد الانضمام إلى فريق MangaVerse؟</p>
-      <a href="/cdn-cgi/l/email-protection#bcc5d3c9d2ddcfcfd3c9ddd7d7ddfcdbd1ddd5d092dfd3d1" class="contact-btn">✉️ راسلنا</a>
+      <a href="/cdn-cgi/l/email-protection#80f9eff5eee1f3f3eff5e1ebebe1c0e7ede1e9ecaee3efed" class="contact-btn">✉️ راسلنا</a>
     </div>
   </div>
 
@@ -6305,9 +6120,6 @@ function closeModal(id){
   if(id==='m-work'){
     // ✅ إعادة ضبط قفل openWork عند الإغلاق
     window._openingWork=false;
-    // 🔥 Live Reading: احذف القارئ عند الإغلاق (async منفصلة لتجنب await في دالة عادية)
-    window._removeLiveReader && window._removeLiveReader();
-    if(window._liveUnsub){ window._liveUnsub(); window._liveUnsub=null; }
     const cur=window._curPage||'home';
     if(cur==='home') history.pushState(null,'','#/');
     else if(cur==='profile') history.pushState(null,'','#/profile');
@@ -6597,83 +6409,36 @@ window.showPage=function(n){
 // ══════════════════════════════════════════
 // ─── POINTS & BADGES SYSTEM ───
 // ══════════════════════════════════════════
-// (moved to module)
-
-const BADGES_CONFIG = [
-  { id:"first_like",    icon:"❤️",  name:"أول إعجاب",       desc:"أعطيت إعجابك الأول",          condition: u => (u.likesGiven||0) >= 1 },
-  { id:"reader_10",     icon:"📖",  name:"قارئ نشط",         desc:"قرأت 10 أعمال",               condition: u => (u.worksRead||0) >= 10 },
-  { id:"reader_50",     icon:"📚",  name:"قارئ متمرس",       desc:"قرأت 50 عملاً",               condition: u => (u.worksRead||0) >= 50 },
-  { id:"creator_1",     icon:"✏️",  name:"مبدع صاعد",        desc:"نشرت أول عمل",                condition: u => (u.worksCount||0) >= 1 },
-  { id:"creator_5",     icon:"🔥",  name:"مبدع نشط",         desc:"نشرت 5 أعمال",                condition: u => (u.worksCount||0) >= 5 },
-  { id:"popular_100",   icon:"⭐",  name:"نجم صاعد",          desc:"حصلت على 100 إعجاب",          condition: u => (u.totalLikes||0) >= 100 },
-  { id:"popular_500",   icon:"💫",  name:"نجم المنصة",        desc:"حصلت على 500 إعجاب",          condition: u => (u.totalLikes||0) >= 500 },
-  { id:"pts_100",       icon:"🥉",  name:"مستوى برونزي",     desc:"جمعت 100 نقطة",               condition: u => (u.points||0) >= 100 },
-  { id:"pts_500",       icon:"🥈",  name:"مستوى فضي",        desc:"جمعت 500 نقطة",               condition: u => (u.points||0) >= 500 },
-  { id:"pts_1000",      icon:"🥇",  name:"مستوى ذهبي",       desc:"جمعت 1000 نقطة",              condition: u => (u.points||0) >= 1000 },
-  { id:"diamond",       icon:"💎",  name:"ماسي",              desc:"جمعت 5000 نقطة",              condition: u => (u.points||0) >= 5000 },
-];
+// ─── BRIDGE: استخدام المتغيرات المصدّرة من الـ module ───
+// ══════════════════════════════════════════
+// هذه الدوال تعمل خارج الـ module وتصل لـ Firebase عبر window._*
+function _getFirebase(){
+  return {
+    db:        window._db,
+    doc:       window._doc,
+    getDoc:    window._getDoc,
+    setDoc:    window._setDoc,
+    updateDoc: window._updateDoc,
+    increment: window._increment,
+    POINTS:    window.POINTS_CONFIG || {}
+  };
+}
 
 function getUserLevel(points){
-  if(points >= 5000) return { label:"💎 ماسي",     color:"#00D4FF" };
-  if(points >= 1000) return { label:"🥇 ذهبي",     color:"#f59e0b" };
-  if(points >= 500)  return { label:"🥈 فضي",      color:"#9ca3af" };
-  if(points >= 100)  return { label:"🥉 برونزي",   color:"#cd7f32" };
-  return                    { label:"🌱 مبتدئ",    color:"#4ade80" };
+  if(points >= 5000) return { label:"💎 ماسي",   color:"#00D4FF" };
+  if(points >= 1000) return { label:"🥇 ذهبي",   color:"#f59e0b" };
+  if(points >= 500)  return { label:"🥈 فضي",    color:"#9ca3af" };
+  if(points >= 100)  return { label:"🥉 برونزي", color:"#cd7f32" };
+  return                    { label:"🌱 مبتدئ",  color:"#4ade80" };
 }
 
-async function addPoints(uid, action, sourceEl=null){
-  const pts = POINTS_CONFIG[action] || 0;
-  if(!pts || !uid) return;
-  try{
-    await setDoc(doc(db,"users",uid), { points: increment(pts) }, { merge:true });
-    // تأثير بصري
-    if(sourceEl){
-      const el = document.createElement("div");
-      el.className = "pts-pop";
-      el.textContent = `+${pts} نقطة`;
-      const r = sourceEl.getBoundingClientRect();
-      el.style.cssText = `left:${r.left+r.width/2}px;top:${r.top}px;`;
-      document.body.appendChild(el);
-      setTimeout(()=>el.remove(), 1300);
-    }
-    // تحقق من الشارات الجديدة
-    const snap = await getDoc(doc(db,"users",uid));
-    if(snap.exists()) checkAndAwardBadges(uid, snap.data());
-  }catch(e){}
-}
-
-async function checkAndAwardBadges(uid, userData){
-  const earned = userData.badges || [];
-  for(const badge of BADGES_CONFIG){
-    if(!earned.includes(badge.id) && badge.condition(userData)){
-      try{
-        await setDoc(doc(db,"users",uid),{ badges: [...earned, badge.id] },{ merge:true });
-        showBadgeNotify(badge);
-        earned.push(badge.id);
-      }catch(e){}
-    }
-  }
-}
-
-function showBadgeNotify(badge){
-  const el = document.getElementById("badge-notify");
-  const icon = document.getElementById("badge-notify-icon");
-  const title = document.getElementById("badge-notify-title");
-  const sub = document.getElementById("badge-notify-sub");
-  if(!el) return;
-  icon.textContent = badge.icon;
-  title.textContent = `🏅 شارة جديدة: ${badge.name}`;
-  sub.textContent = badge.desc;
-  el.style.display = "flex";
-  setTimeout(()=>{ el.classList.add("show"); }, 50);
-  setTimeout(()=>{ el.classList.remove("show"); setTimeout(()=>{ el.style.display="none"; },400); }, 4500);
-}
-
-// ── زر الإعجاب ──
+// ── زر الإعجاب (النسخة الصحيحة) ──
 window.toggleLike = async function(workId){
-  if(!CU) return toast("⚠️ سجّل دخولك أولاً","w");
+  if(!window.CU) return toast("⚠️ سجّل دخولك أولاً","w");
+  const { db, doc, getDoc, setDoc, updateDoc, increment, POINTS } = _getFirebase();
+  if(!db) return toast("❌ لم تكتمل تهيئة التطبيق — أعد تحميل الصفحة","e");
   const btn = document.getElementById("wm-like-btn");
-  const uid = CU.uid;
+  const uid = window.CU.uid;
   try{
     const wRef = doc(db,"works",workId);
     const wSnap = await getDoc(wRef);
@@ -6681,73 +6446,43 @@ window.toggleLike = async function(workId){
     const w = wSnap.data();
     const likedBy = w.likedBy || [];
     const alreadyLiked = likedBy.includes(uid);
-
     if(alreadyLiked){
-      // إلغاء الإعجاب
-      await updateDoc(wRef,{
-        likedBy: likedBy.filter(id=>id!==uid),
-        likes: Math.max((w.likes||1)-1, 0)
-      });
-      if(btn){ btn.classList.remove("liked"); btn.textContent = `❤️ إعجاب`; }
+      await updateDoc(wRef,{ likedBy: likedBy.filter(id=>id!==uid), likes: Math.max((w.likes||1)-1,0) });
+      if(btn){ btn.classList.remove("liked"); btn.textContent = "❤️ إعجاب"; }
     } else {
-      // إضافة إعجاب
-      await updateDoc(wRef,{
-        likedBy: [...likedBy, uid],
-        likes: (w.likes||0) + 1
-      });
-      if(btn){
-        btn.classList.add("liked","pop");
-        setTimeout(()=>btn.classList.remove("pop"),300);
-        btn.textContent = `❤️ أعجبني`;
-      }
+      await updateDoc(wRef,{ likedBy: [...likedBy,uid], likes: (w.likes||0)+1 });
+      if(btn){ btn.classList.add("liked","pop"); setTimeout(()=>btn.classList.remove("pop"),300); btn.textContent = "❤️ أعجبني"; }
       // نقاط للمعجِب
-      await addPoints(uid, "like_given", btn);
+      if(window.addPoints) await window.addPoints(uid,"like_given",btn);
       // نقاط لصاحب العمل
       if(w.authorId && w.authorId !== uid){
-        await setDoc(doc(db,"users",w.authorId),{
-          totalLikes: increment(1),
-          points: increment(POINTS_CONFIG.like_received)
-        },{ merge:true });
-        const authorSnap = await getDoc(doc(db,"users",w.authorId));
-        if(authorSnap.exists()) checkAndAwardBadges(w.authorId, authorSnap.data());
+        await setDoc(doc(db,"users",w.authorId),{ totalLikes:increment(1), points:increment(POINTS.like_received||3) },{merge:true});
+        const aSnap = await getDoc(doc(db,"users",w.authorId));
+        if(aSnap.exists() && window.checkAndAwardBadges) window.checkAndAwardBadges(w.authorId,aSnap.data());
       }
     }
-    // تحديث العداد في الـ modal
     const updated = await getDoc(wRef);
     const uw = updated.data();
     const viewsEl = document.getElementById("wm-views");
-    if(viewsEl) viewsEl.textContent = `👁 ${uw.views||0}  ❤️ ${uw.likes||0}  🔖 ${uw.bookmarkCount||0}`;
+    if(viewsEl) viewsEl.textContent = "👁 "+(uw.views||0)+"  ❤️ "+(uw.likes||0)+"  🔖 "+(uw.bookmarkCount||0);
   }catch(e){ toast("❌ حدث خطأ: "+e.message,"e"); }
 };
 
-// تحديث حالة زر الإعجاب عند فتح العمل
-// like btn handled in updateLikeBtn
-
-// نقاط عند النشر
-const _origDoPublish = window.doPublish;
-if(_origDoPublish){
-  window.doPublish = async function(...args){
-    await _origDoPublish(...args);
-    if(CU) await addPoints(CU.uid, "post_work");
-  };
-}
-
 // نقاط الدخول اليومي
 async function checkDailyLogin(){
-  if(!CU) return;
+  if(!window.CU) return;
+  const { db, doc, getDoc, setDoc, increment, POINTS } = _getFirebase();
+  if(!db) return;
   try{
     const today = new Date().toDateString();
-    const uSnap = await getDoc(doc(db,"users",CU.uid));
+    const uSnap = await getDoc(doc(db,"users",window.CU.uid));
     if(!uSnap.exists()) return;
     const data = uSnap.data();
     if(data.lastLoginDate !== today){
-      await setDoc(doc(db,"users",CU.uid),{
-        lastLoginDate: today,
-        points: increment(POINTS_CONFIG.daily_login)
-      },{ merge:true });
-      toast(`☀️ مرحباً! حصلت على ${POINTS_CONFIG.daily_login} نقاط لدخولك اليومي`);
-      const updated = await getDoc(doc(db,"users",CU.uid));
-      checkAndAwardBadges(CU.uid, updated.data());
+      await setDoc(doc(db,"users",window.CU.uid),{ lastLoginDate:today, points:increment(POINTS.daily_login||5) },{merge:true});
+      toast("☀️ مرحباً! حصلت على "+(POINTS.daily_login||5)+" نقاط لدخولك اليومي");
+      const updated = await getDoc(doc(db,"users",window.CU.uid));
+      if(updated.exists() && window.checkAndAwardBadges) window.checkAndAwardBadges(window.CU.uid,updated.data());
     }
   }catch(e){}
 }
@@ -6818,9 +6553,11 @@ window.achShowTab = function(btn, tab){
 };
 
 async function loadAchievementsPage(){
-  if(!CU){ showPage("home"); return openModal("m-auth"); }
+  if(!window.CU){ showPage("home"); return openModal("m-auth"); }
+  const { db, doc, getDoc } = _getFirebase();
+  if(!db){ document.getElementById("ach-content").innerHTML='<div style="text-align:center;padding:2rem;color:rgba(255,255,255,.4)">❌ لم يكتمل التحميل</div>'; return; }
   try{
-    const snap = await getDoc(doc(db,"users",CU.uid));
+    const snap = await getDoc(doc(db,"users",window.CU.uid));
     const data = snap.exists() ? snap.data() : {};
     window._achUserData = data;
     updateAchievementsUI(data);
@@ -6915,9 +6652,10 @@ function achCard(ach, data, isEarned){
   </div>`;
 }
 
-// تحديث BADGES_CONFIG ليستخدم نفس IDs
-const _origCheckBadges = window.checkAndAwardBadges;
+// checkAndAwardBadges — الدالة الكاملة النهائية (تستخدم bridge)
 window.checkAndAwardBadges = async function(uid, userData){
+  const { db, doc, setDoc } = _getFirebase();
+  if(!db) return;
   const earned = userData.badges || [];
   for(const ach of ACHIEVEMENTS){
     if(earned.includes(ach.id)) continue;
@@ -6927,7 +6665,7 @@ window.checkAndAwardBadges = async function(uid, userData){
       try{
         const newBadges = [...earned, ach.id];
         await setDoc(doc(db,"users",uid),{ badges: newBadges },{ merge:true });
-        showBadgeNotify({ icon: ach.icon, name: ach.name, desc: ach.desc });
+        if(window._showBadgeNotify) window._showBadgeNotify({ icon: ach.icon, name: ach.name, desc: ach.desc });
         earned.push(ach.id);
       }catch(e){}
     }
@@ -6936,13 +6674,15 @@ window.checkAndAwardBadges = async function(uid, userData){
 
 // "مرحباً بك" عند أول تسجيل
 async function awardFirstRegBadge(uid){
+  const { db, doc, getDoc, setDoc } = _getFirebase();
+  if(!db) return;
   try{
     const snap = await getDoc(doc(db,"users",uid));
     if(snap.exists()){
       const badges = snap.data().badges||[];
       if(!badges.includes("first_reg")){
         await setDoc(doc(db,"users",uid),{ badges:[...badges,"first_reg"] },{ merge:true });
-        setTimeout(()=>showBadgeNotify({ icon:"🎉", name:"مرحباً بك!", desc:"أنشأت حسابك في MangaVerse" }),2000);
+        setTimeout(()=>{ if(window._showBadgeNotify) window._showBadgeNotify({ icon:"🎉", name:"مرحباً بك!", desc:"أنشأت حسابك في MangaVerse" }); },2000);
       }
     }
   }catch(e){}
@@ -6950,7 +6690,9 @@ async function awardFirstRegBadge(uid){
 
 
 async function updateLikeBtn(id){
-  if(!CU) return;
+  if(!window.CU) return;
+  const { db, doc, getDoc, setDoc, increment } = _getFirebase();
+  if(!db) return;
   try{
     const wSnap = await getDoc(doc(db,"works",id));
     if(!wSnap.exists()) return;
@@ -6958,18 +6700,18 @@ async function updateLikeBtn(id){
     const likes = wSnap.data().likes || 0;
     const btn = document.getElementById("wm-like-btn");
     if(btn){
-      if(likedBy.includes(CU.uid)){
-        btn.classList.add("liked"); btn.textContent = `❤️ أعجبني (${likes})`;
+      if(likedBy.includes(window.CU.uid)){
+        btn.classList.add("liked"); btn.textContent = "❤️ أعجبني ("+likes+")";
       } else {
-        btn.classList.remove("liked"); btn.textContent = `❤️ إعجاب (${likes})`;
+        btn.classList.remove("liked"); btn.textContent = "❤️ إعجاب ("+likes+")";
       }
     }
     Promise.all([
-      addPoints(CU.uid, "read_work"),
-      setDoc(doc(db,"users",CU.uid),{ worksRead: increment(1) },{ merge:true })
+      window.addPoints ? window.addPoints(window.CU.uid,"read_work") : Promise.resolve(),
+      setDoc(doc(db,"users",window.CU.uid),{ worksRead: increment(1) },{ merge:true })
     ]).then(async()=>{
-      const updated = await getDoc(doc(db,"users",CU.uid));
-      if(updated.exists()) checkAndAwardBadges(CU.uid, updated.data());
+      const updated = await getDoc(doc(db,"users",window.CU.uid));
+      if(updated.exists() && window.checkAndAwardBadges) window.checkAndAwardBadges(window.CU.uid,updated.data());
     }).catch(()=>{});
   }catch(e){}
 }
@@ -7067,6 +6809,14 @@ document.addEventListener('click', () => {
 
 // ── تحميل إحصائيات من نحن ──
 async function loadAboutStats(){
+  const { db, collection, query, limit, getDocs } = {
+    db: window._db,
+    collection: window._collection,
+    query: window._query,
+    limit: window._limit,
+    getDocs: window._getDocs
+  };
+  if(!db) return;
   try{
     const [worksSnap, usersSnap] = await Promise.all([
       getDocs(query(collection(db,"works"), limit(1000))),
@@ -7077,4 +6827,23 @@ async function loadAboutStats(){
     const totalViews = worksSnap.docs.reduce((s,d)=>s+(d.data().views||0),0);
     const fmt = n => n >= 1000 ? (n/1000).toFixed(1)+'K' : n.toString();
     const w=document.getElementById("about-stat-works"); if(w) w.textContent=fmt(totalWorks);
-    const u=document.getEle
+    const u=document.getElementById("about-stat-users"); if(u) u.textContent=fmt(totalUsers);
+    const v=document.getElementById("about-stat-views"); if(v) v.textContent=fmt(totalViews);
+  }catch(e){}
+}
+
+// ═══════════════════════════════════════════════════════
+// ─── Global Error Handler — يمنع الأخطاء الصامتة ──────
+// ═══════════════════════════════════════════════════════
+window.addEventListener('unhandledrejection', function(e){
+  // تجاهل أخطاء Firebase العادية (مثل permission-denied عند تسجيل الخروج)
+  const msg = e.reason?.message || e.reason?.code || '';
+  if(msg.includes('permission-denied') || msg.includes('unauthenticated')) return;
+  console.warn('[MangaVerse] Unhandled Promise:', e.reason);
+});
+
+window.addEventListener('error', function(e){
+  console.error('[MangaVerse] JS Error:', e.message, 'at', e.filename, ':', e.lineno);
+});
+
+</script>
