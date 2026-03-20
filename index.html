@@ -106,7 +106,7 @@ window.CU=null; window.CUD=null; window._curPage="home";
 // ─── AUTH STATE ───
 onAuthStateChanged(auth, async user=>{
   // ✅ أعلن أن Firebase Auth جاهز (للـ router)
-  if(!window._authReady){ window._authReady=true; if(window._authReadyResolve) window._authReadyResolve(); }
+  if(!_authReady){ _authReady=true; if(_authReadyResolve) _authReadyResolve(); }
   // ← امسح الواجهة أولاً قبل أي شيء
   clearProfileUI();
 
@@ -315,8 +315,8 @@ window.deleteAccount = async () => {
     // حذف الإشعارات
     const nSnap = await getDocs(query(collection(db,"notifications"), where("toUid","==",uid)));
     await Promise.all(nSnap.docs.map(d => deleteDoc(d.ref))).catch(()=>{});
-    // ✅ إصلاح الأداء: جلب تقدم القراءة الخاص بالمستخدم فقط
-    const rSnap = await getDocs(query(collection(db,"readProgress"), where("uid","==",uid)));
+    // حذف تقدم القراءة
+    const rSnap = await getDocs(query(collection(db,"readProgress")));
     // حذف حساب Firebase Auth
     await CU.delete();
     toast("✅ تم حذف حسابك بنجاح");
@@ -1514,29 +1514,19 @@ window.openAdminDashboard=async()=>{
   const modal=G("m-admin");
   if(!modal) return;
   toast("⏳ جاري تحميل بيانات الإدارة...");
-  // ✅ إصلاح الأداء: وثيقة إحصائيات مركزية بدل جلب كل الكوليكشن
+  // إحصائيات
   try{
-    const metaSnap = await getDoc(doc(db,"meta","stats")).catch(()=>null);
-    const adwc=G("adm-works-count");
-    const aduc=G("adm-users-count");
-    const adnc=G("adm-notifs-count");
-    if(metaSnap && metaSnap.exists()){
-      const s = metaSnap.data();
-      if(adwc) adwc.textContent = (s.totalWorks||0).toLocaleString("ar");
-      if(aduc) aduc.textContent = (s.totalUsers||0).toLocaleString("ar");
-      if(adnc) adnc.textContent = (s.totalNotifs||0).toLocaleString("ar");
-    } else {
-      const [wSnap,uSnap] = await Promise.all([
-        getDocs(query(collection(db,"works"), limit(100))),
-        getDocs(query(collection(db,"users"), limit(100)))
-      ]);
-      if(adwc) adwc.textContent = wSnap.size+(wSnap.size===100?"+":"");
-      if(aduc) aduc.textContent = uSnap.size+(uSnap.size===100?"+":"");
-      if(adnc) adnc.textContent = "—";
-    }
+    const [wSnap,uSnap,nSnap]=await Promise.all([
+      getDocs(collection(db,"works")),
+      getDocs(collection(db,"users")),
+      getDocs(collection(db,"notifications"))
+    ]);
+    const adwc=G("adm-works-count"); if(adwc) adwc.textContent=wSnap.size;
+    const aduc=G("adm-users-count"); if(aduc) aduc.textContent=uSnap.size;
+    const adnc=G("adm-notifs-count"); if(adnc) adnc.textContent=nSnap.size;
   }catch(e){}
-  // ✅ إصلاح الأداء: جلب آخر 50 فقط بدل كل الأعمال
-  const snap=await getDocs(query(collection(db,"works"),orderBy("createdAt","desc"),limit(50)));
+  // جلب كل الأعمال
+  const snap=await getDocs(query(collection(db,"works"),orderBy("createdAt","desc")));
   const worksHtml=snap.empty?'<p style="color:var(--mu)">لا توجد أعمال</p>':snap.docs.map(d=>{
     const w=d.data();
     return `<div class="admin-row">
@@ -4779,227 +4769,6 @@ body.light-mode .stab:hover{color:var(--red);}
   .about-hero-title{font-size:2.5rem;}
 }
 
-/* ════════════════════════════════════════
-   🔥 MANGAVERSE GLOW PACK — SAFE VERSION
-   لا تعارض مع z-index أو pointer-events
-════════════════════════════════════════ */
-
-/* ── 🌌 خلفية هالات كونية (لا تتعارض مع العناصر) ── */
-#mv-bg-glow {
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  overflow: hidden;
-}
-#mv-bg-glow::before {
-  content: '';
-  position: absolute;
-  width: 700px; height: 700px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(232,25,44,.07) 0%, transparent 70%);
-  top: -200px; right: -200px;
-  animation: bgOrb1 18s ease-in-out infinite alternate;
-}
-#mv-bg-glow::after {
-  content: '';
-  position: absolute;
-  width: 600px; height: 600px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(123,47,255,.05) 0%, transparent 70%);
-  bottom: -200px; left: -200px;
-  animation: bgOrb2 22s ease-in-out infinite alternate;
-}
-@keyframes bgOrb1 { 0%{transform:translate(0,0) scale(1)} 100%{transform:translate(-80px,80px) scale(1.3)} }
-@keyframes bgOrb2 { 0%{transform:translate(0,0) scale(1)} 100%{transform:translate(60px,-60px) scale(1.2)} }
-
-/* ── 🔴 شريط NAV ── */
-nav {
-  backdrop-filter: blur(20px) saturate(1.5) !important;
-  border-bottom: 1px solid rgba(232,25,44,.2) !important;
-  box-shadow: 0 1px 0 rgba(232,25,44,.1), 0 4px 24px rgba(0,0,0,.5) !important;
-}
-#mv-nav-line {
-  position: absolute;
-  bottom: 0; left: 0; right: 0;
-  height: 1px;
-  background: linear-gradient(90deg, transparent 0%, rgba(232,25,44,.7) 30%, rgba(255,107,53,1) 50%, rgba(232,25,44,.7) 70%, transparent 100%);
-  pointer-events: none;
-  animation: navLine 4s ease-in-out infinite;
-}
-@keyframes navLine {
-  0%,100% { opacity:.4; } 50% { opacity:1; }
-}
-
-/* ── شعار ── */
-.logo-text {
-  background: linear-gradient(135deg, #fff 40%, #e8192c 100%) !important;
-  -webkit-background-clip: text !important;
-  -webkit-text-fill-color: transparent !important;
-  background-clip: text !important;
-  filter: drop-shadow(0 0 8px rgba(232,25,44,.35));
-  animation: logoGlow 3s ease-in-out infinite;
-}
-@keyframes logoGlow {
-  0%,100% { filter: drop-shadow(0 0 5px rgba(232,25,44,.3)); }
-  50%     { filter: drop-shadow(0 0 14px rgba(232,25,44,.75)); }
-}
-
-/* ── زر النشر ── */
-.nbtn-pub {
-  background: linear-gradient(135deg, #e8192c 0%, #ff4500 50%, #e8192c 100%) !important;
-  background-size: 200% 100% !important;
-  box-shadow: 0 0 16px rgba(232,25,44,.45) !important;
-  animation: pubGlow 2.5s ease-in-out infinite, pubShift 3s linear infinite !important;
-}
-@keyframes pubGlow  { 0%,100%{box-shadow:0 0 14px rgba(232,25,44,.4)} 50%{box-shadow:0 0 28px rgba(232,25,44,.85),0 0 50px rgba(232,25,44,.25)} }
-@keyframes pubShift { 0%{background-position:0% 0%} 100%{background-position:200% 0%} }
-
-/* ── 🃏 بطاقات الأعمال ── */
-.work-card {
-  transition: transform .3s cubic-bezier(.34,1.56,.64,1), box-shadow .3s ease !important;
-}
-.work-card:hover {
-  transform: translateY(-8px) scale(1.015) !important;
-  box-shadow: 0 20px 50px rgba(0,0,0,.65), 0 0 18px rgba(232,25,44,.2) !important;
-}
-.work-thumb {
-  position: relative;
-}
-.work-thumb img {
-  transition: transform .45s ease !important;
-}
-.work-card:hover .work-thumb img {
-  transform: scale(1.06) !important;
-}
-.work-card:hover .work-title {
-  color: #fff !important;
-}
-
-/* ── ✨ شارة النوع ── */
-.work-badge {
-  box-shadow: 0 0 6px rgba(245,166,35,.2), inset 0 0 4px rgba(245,166,35,.05) !important;
-}
-
-/* ── زر قراءة ── */
-.work-read-btn {
-  background: linear-gradient(135deg, #e8192c, #ff4500) !important;
-  box-shadow: 0 0 10px rgba(232,25,44,.4) !important;
-}
-
-/* ── 🏆 صف المبدعين ── */
-.creator-row {
-  transition: background .25s, border-color .25s, transform .25s !important;
-  border-radius: 12px !important;
-}
-.creator-row:hover {
-  background: rgba(232,25,44,.06) !important;
-  border: 1px solid rgba(232,25,44,.2) !important;
-  transform: translateX(-3px) !important;
-}
-
-/* ── 🎨 بطاقات التصنيف ── */
-.genre-card {
-  transition: transform .3s cubic-bezier(.34,1.56,.64,1), border-color .3s, box-shadow .3s !important;
-}
-.genre-card:hover {
-  transform: translateY(-5px) scale(1.04) !important;
-  border-color: rgba(232,25,44,.35) !important;
-  box-shadow: 0 10px 28px rgba(0,0,0,.4), 0 0 16px rgba(232,25,44,.12) !important;
-}
-.genre-card:hover .genre-card-icon {
-  transform: scale(1.15) !important;
-  display: inline-block;
-}
-
-/* ── 📌 تبويبات النوع ── */
-.ttab.active {
-  background: linear-gradient(135deg, #e8192c, #ff4500) !important;
-  box-shadow: 0 0 18px rgba(232,25,44,.45), 0 4px 12px rgba(232,25,44,.25) !important;
-  border-color: transparent !important;
-}
-
-/* ── 📊 إحصائيات ── */
-.stat-card {
-  transition: transform .3s, box-shadow .3s !important;
-}
-.stat-card:hover {
-  transform: translateY(-3px) !important;
-  box-shadow: 0 8px 24px rgba(0,0,0,.4), 0 0 16px rgba(232,25,44,.08) !important;
-}
-.stat-card .sv {
-  animation: svGlow 3s ease-in-out infinite;
-}
-.pstat-num {
-  animation: svGlow 3.5s ease-in-out infinite;
-}
-@keyframes svGlow {
-  0%,100% { text-shadow: 0 0 8px rgba(232,25,44,.3); }
-  50%     { text-shadow: 0 0 20px rgba(232,25,44,.7), 0 0 36px rgba(232,25,44,.25); }
-}
-
-/* ── 📜 Manifesto ── */
-.manifesto-text em {
-  text-shadow: 0 0 16px rgba(232,25,44,.5), 0 0 32px rgba(232,25,44,.2) !important;
-}
-
-/* ── 🟥 أزرار رئيسية ── */
-.pbtn-p, .hslide-btn-p {
-  transition: transform .25s, box-shadow .25s !important;
-}
-.pbtn-p:hover, .hslide-btn-p:hover {
-  box-shadow: 0 0 28px rgba(232,25,44,.7), 0 6px 18px rgba(232,25,44,.35) !important;
-  transform: translateY(-2px) !important;
-}
-
-/* ── Badge توهج ── */
-.vbadge {
-  animation: vbPulse 2.5s ease-in-out infinite !important;
-}
-@keyframes vbPulse {
-  0%,100% { box-shadow: 0 0 5px rgba(232,25,44,.3); }
-  50%     { box-shadow: 0 0 12px rgba(232,25,44,.7); }
-}
-
-/* ── Scroll Bar ── */
-::-webkit-scrollbar { width: 4px; height: 4px; }
-::-webkit-scrollbar-track { background: rgba(255,255,255,.02); }
-::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, rgba(232,25,44,.7), rgba(123,47,255,.5));
-  border-radius: 10px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, #e8192c, #7b2fff);
-}
-
-/* ── Page transition ── */
-.page.active {
-  animation: pageIn .35s ease-out forwards;
-}
-@keyframes pageIn {
-  from { opacity: .75; transform: translateY(5px); }
-  to   { opacity: 1;   transform: translateY(0); }
-}
-
-/* ── Loading spin ── */
-.spin {
-  color: var(--red) !important;
-  filter: drop-shadow(0 0 5px rgba(232,25,44,.55)) !important;
-}
-
-/* ── Search focus ── */
-.adv-search-input-wrap input:focus {
-  box-shadow: 0 0 0 3px rgba(232,25,44,.12), 0 0 18px rgba(232,25,44,.08) !important;
-}
-
-/* ── Trending rank badge ── */
-.trend-rank {
-  box-shadow: 0 0 10px rgba(232,25,44,.5) !important;
-}
-
-/* ── Light mode: تعطيل التأثيرات الكونية ── */
-body.light-mode #mv-bg-glow { display: none !important; }
-
 </style>
 <link rel="manifest" href="/manifest.json">
 <meta name="mobile-web-app-capable" content="yes">
@@ -5009,14 +4778,10 @@ body.light-mode #mv-bg-glow { display: none !important; }
 <meta name="theme-color" content="#e8192c">
 <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/younesouakka900-droid/%D8%B9%D8%A7%D9%84%D9%85-%D8%A7%D9%84%D9%85%D8%A7%D9%86%D8%AC%D8%A7/main/favicon.png">
 <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/younesouakka900-droid/%D8%B9%D8%A7%D9%84%D9%85-%D8%A7%D9%84%D9%85%D8%A7%D9%86%D8%AC%D8%A7/main/favicon.png">
-
 <!-- Adsterra Popunder -->
 <script async src="https://pl28904726.effectivegatecpm.com/19/00/e9/1900e90ceb43c783f1f16564730d8229.js"></script>
 </head>
 <body>
-
-<!-- 🌌 خلفية هالات كونية -->
-<div id="mv-bg-glow" aria-hidden="true"></div>
 
 <!-- Hidden file inputs -->
 <input type="file" id="inp-avatar" accept="image/*" style="display:none" onchange="onAvatarPick(this)" aria-label="رفع صورة شخصية">
@@ -5676,7 +5441,7 @@ body.light-mode #mv-bg-glow { display: none !important; }
         <div style="background:var(--s2);border:1px solid var(--br);border-radius:12px;padding:1.3rem;text-align:center;margin-top:1rem;">
           <p style="font-weight:800;font-size:.95rem;margin-bottom:.4rem">📧 تواصل مع الإدارة</p>
           <p style="font-size:.83rem;color:var(--mu);margin-bottom:.7rem">إذا كنت صاحب حقوق ملكية وتجد محتوى منتهكاً، تواصل معنا فوراً.</p>
-          <a href="/cdn-cgi/l/email-protection#d4adbba1bab5a7a7bba1b5bfbfb594b3b9b5bdb8fab7bbb9" style="color:var(--red);font-weight:700;font-size:.88rem"><span class="__cf_email__" data-cfemail="5c253329323d2f2f33293d37373d1c3b313d3530723f3331">[email&#160;protected]</span></a>
+          <a href="/cdn-cgi/l/email-protection#324b5d475c5341415d475359595372555f535b5e1c515d5f" style="color:var(--red);font-weight:700;font-size:.88rem"><span class="__cf_email__" data-cfemail="4e37213b202f3d3d213b2f25252f0e29232f2722602d2123">[email&#160;protected]</span></a>
         </div>
       </div>
     </div>
@@ -5806,7 +5571,7 @@ body.light-mode #mv-bg-glow { display: none !important; }
       <div style="font-size:1.5rem;margin-bottom:.5rem">📬</div>
       <div style="font-weight:800;font-size:1rem;margin-bottom:.4rem">تواصل معنا</div>
       <p>هل لديك اقتراح أو تريد الانضمام إلى فريق MangaVerse؟</p>
-      <a href="/cdn-cgi/l/email-protection#9ce5f3e9f2fdefeff3e9fdf7f7fddcfbf1fdf5f0b2fff3f1" class="contact-btn">✉️ راسلنا</a>
+      <a href="/cdn-cgi/l/email-protection#f980968c97988a8a968c98929298b99e94989095d79a9694" class="contact-btn">✉️ راسلنا</a>
     </div>
   </div>
 
@@ -5866,7 +5631,6 @@ body.light-mode #mv-bg-glow { display: none !important; }
 
 <!-- NAV -->
 <nav>
-  <div id="mv-nav-line" aria-hidden="true"></div>
   <div class="logo" onclick="showPage('home')"><div class="hx">M</div><span class="logo-text">MANGA<span style="color:var(--red)">VERSE</span></span></div>
   <div class="nav-search">
     <input id="search-inp" type="text" placeholder="🔍 ابحث عن مانجا، كتاب، مبدع..." onkeydown="if(event.key==='Enter') doSearch()">
@@ -6428,10 +6192,10 @@ async function handleRoute(){
 window.addEventListener('hashchange', handleRoute);
 // شغّل الراوتر بعد تحميل الصفحة
 // ✅ انتظر Firebase Auth بدلاً من setTimeout ثابت
-window._authReady = false;
-window._authReadyResolve = null;
-window._authReadyPromise = new Promise(r => { window._authReadyResolve = r; });
-window.addEventListener("load", ()=> window._authReadyPromise.then(handleRoute));
+let _authReady = false;
+let _authReadyResolve = null;
+const _authReadyPromise = new Promise(r => { _authReadyResolve = r; });
+window.addEventListener('load', ()=> _authReadyPromise.then(handleRoute));
 function openModal(id){document.getElementById(id)?.classList.add('open');document.body.style.overflow='hidden';}
 function closeModal(id){
   document.getElementById(id)?.classList.remove('open');
@@ -7198,27 +6962,15 @@ document.addEventListener('click', () => {
 });
 
 // ── تحميل إحصائيات من نحن ──
-// ✅ إصلاح الأداء: بدل جلب 1000 وثيقة، نستخدم وثيقة عداد مركزية واحدة
 async function loadAboutStats(){
   try{
-    // جلب وثيقة إحصائيات مركزية بدل limit(1000)
-    const statsDoc = await getDoc(doc(db,"meta","stats"));
-    let totalWorks = 0, totalUsers = 0, totalViews = 0;
-    if(statsDoc.exists()){
-      const s = statsDoc.data();
-      totalWorks = s.totalWorks || 0;
-      totalUsers = s.totalUsers || 0;
-      totalViews = s.totalViews || 0;
-    } else {
-      // fallback: جلب عينة صغيرة فقط إذا لم توجد وثيقة الإحصائيات
-      const [worksSnap, usersSnap] = await Promise.all([
-        getDocs(query(collection(db,"works"), limit(50))),
-        getDocs(query(collection(db,"users"), limit(50)))
-      ]);
-      totalWorks = worksSnap.size;
-      totalUsers = usersSnap.size;
-      totalViews = worksSnap.docs.reduce((s,d)=>s+(d.data().views||0),0);
-    }
+    const [worksSnap, usersSnap] = await Promise.all([
+      getDocs(query(collection(db,"works"), limit(1000))),
+      getDocs(query(collection(db,"users"), limit(1000)))
+    ]);
+    const totalWorks = worksSnap.size;
+    const totalUsers = usersSnap.size;
+    const totalViews = worksSnap.docs.reduce((s,d)=>s+(d.data().views||0),0);
     const fmt = n => n >= 1000 ? (n/1000).toFixed(1)+'K' : n.toString();
     const w=document.getElementById("about-stat-works"); if(w) w.textContent=fmt(totalWorks);
     const u=document.getEle
