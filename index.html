@@ -349,26 +349,29 @@ function setCoverUI(url){
 let _lastPublishTime = 0;
 window.doPublish=async()=>{
   if(!CU) return openModal("m-auth");
-  // ✅ Rate Limit: 30 ثانية بين كل نشر وآخر
   const now = Date.now();
-  if(now - _lastPublishTime < 30000) return toast("⚠️ انتظر 30 ثانية قبل نشر عمل جديد","w");
+  if(now - _lastPublishTime < 30000) return toast("⚠️ انتظر 30 ثانية بين كل نشر وآخر","w");
   const title=V("w-title"),type=V("w-type"),genre=V("w-genre"),desc=V("w-desc"),status=V("w-status");
   const coverFile=G("w-cover-file").files[0];
   const pdfFile=G("w-pdf-file").files[0];
   const extUrl=V("w-url");
   const supportUrl=V("w-support"),audioUrl=V("w-audio"),trailerUrl=V("w-trailer");
   const pagesFiles=G("w-pages").files;
+  const novelContent = (G("w-novel-content")?.value||"").trim();
+  const isNovelType = ["رواية","كتاب"].includes(type);
+
   if(!title) return toast("⚠️ يرجى إدخال اسم العمل","w");
   if(!type)  return toast("⚠️ يرجى اختيار التصنيف","w");
   if(!genre) return toast("⚠️ يرجى اختيار النوع","w");
   if(!desc)  return toast("⚠️ يرجى كتابة وصف العمل","w");
   if(!coverFile) return toast("⚠️ يرجى رفع صورة غلاف للعمل","w");
-  if(status !== "قريباً" && !pdfFile&&!extUrl&&pagesFiles.length===0) return toast("⚠️ يرجى رفع ملف أو صور أو إدخال رابط","w");
+  // للروايات: يكفي النص المباشر أو PDF أو رابط
+  if(status !== "قريباً" && !novelContent && !pdfFile && !extUrl && pagesFiles.length===0)
+    return toast("⚠️ يرجى رفع ملف أو كتابة النص أو إدخال رابط","w");
+
   setBL("btn-pub",true);
   try{
-    _lastPublishTime = Date.now(); // ✅ تسجيل وقت النشر للـ Rate Limit
-    const ts = Date.now();
-    // ── رفع الغلاف إلى Firebase Storage ──
+    _lastPublishTime = Date.now();
     toast("⏳ جاري معالجة صورة الغلاف...");
     const watermarkedCover = await addWatermarkToImage(coverFile);
     toast("⏳ جاري رفع صورة الغلاف...");
@@ -376,7 +379,6 @@ window.doPublish=async()=>{
 
     let fileUrl=extUrl||"", fileName="", fileType=status==="قريباً"?"coming-soon":"link", pages=[];
 
-    // ── رفع صور الصفحات (فقط إذا ليس قريباً) ──
     if(status !== "قريباً" && pagesFiles.length>0){
       toast(`⏳ جاري رفع ${pagesFiles.length} صورة...`);
       for(let i=0;i<pagesFiles.length;i++){
@@ -385,20 +387,22 @@ window.doPublish=async()=>{
         toast(`⏳ جاري رفع الصورة ${i+1} من ${pagesFiles.length}...`);
       }
       fileType="pages";
-    }
-    // ── رفع PDF مباشرة (فقط إذا ليس قريباً) ──
-    else if(status !== "قريباً" && pdfFile && !extUrl){
-      if(pdfFile.size>50*1024*1024) return toast("⚠️ PDF أكبر من 50MB — الحد الأقصى المسموح","w");
+    } else if(status !== "قريباً" && pdfFile && !extUrl){
+      if(pdfFile.size>50*1024*1024) return toast("⚠️ PDF أكبر من 50MB","w");
       toast("⏳ جاري رفع PDF...");
       fileUrl  = await cloudinaryUpload(pdfFile);
       fileName = pdfFile.name;
       fileType = "pdf";
     }
 
+    // إذا كتب نصاً مباشراً → fileType = novel
+    if(novelContent && fileType==="link" && !extUrl) fileType="novel";
+
     await addDoc(collection(db,"works"),{
       title:sanitize(title), type, genre, desc:sanitize(desc),
       status:status||"مستمر", coverUrl,
       fileUrl, fileName, fileType, pages,
+      novelContent: novelContent||"",
       supportUrl, audioUrl, trailerUrl,
       authorId:CU.uid, authorName:CU.displayName,
       authorAvatar:CUD?.avatarUrl||"", authorVerified:CUD?.verified||false,
@@ -408,13 +412,14 @@ window.doPublish=async()=>{
       rating:0, ratingCount:0, ratings:{}, comments:[]
     });
     await setDoc(doc(db,"users",CU.uid),{worksCount:increment(1)},{merge:true});
-    // ✅ تحديث النقاط عند النشر
     updateUserPoints(CU.uid);
-    ["w-title","w-desc","w-url","w-support","w-audio","w-trailer"].forEach(id=>{const el=G(id);if(el)el.value="";});
+    ["w-title","w-desc","w-url","w-support","w-audio","w-trailer","w-novel-content"].forEach(id=>{const el=G(id);if(el)el.value="";});
     ["w-cover-file","w-pdf-file","w-pages","w-type","w-genre"].forEach(id=>{const el=G(id);if(el)el.value="";});
     const ws=G("w-status"); if(ws) ws.value="مستمر";
     G("cover-prev")?.style&&(G("cover-prev").style.display="none");
     G("pages-count").textContent="";
+    G("novel-pub-wrap")?.classList.remove("show");
+    const cc=G("nv-char-count"); if(cc) cc.textContent="0 حرف";
     closeModal("m-publish");
     toast("🎉 تم نشر «"+title+"» بنجاح!");
     window._lastDoc=null; loadWorks(); loadHeroSlider();
@@ -821,15 +826,19 @@ window.openWork=async id=>{
 
   // read btn
   const rb=G("wm-read-btn");
-  if(w.fileType==="pages"&&w.pages?.length){
+  if(w.fileType==="novel" || (w.novelContent && !w.fileUrl && !w.pages?.length)){
+    rb.textContent="📖 قراءة الرواية";
+    rb.onclick=()=>{ closeModal("m-work"); openNovelReader(w,[],0); };
+  } else if(w.novelContent && w.fileType==="novel"){
+    rb.textContent="📖 قراءة الرواية";
+    rb.onclick=()=>{ closeModal("m-work"); openNovelReader(w,[],0); };
+  } else if(w.fileType==="pages"&&w.pages?.length){
     rb.textContent="📖 قراءة في القارئ";
     rb.onclick=()=>{ closeModal("m-work"); openReader(w); };
   } else if(w.fileType==="pdf"&&w.fileUrl?.startsWith("http")){
-    // ملفات PDF جديدة من Firebase Storage
     rb.textContent="📖 قراءة PDF";
     rb.onclick=()=>{ closeModal("m-work"); openPdfViewer(w.fileUrl, w.fileName||w.title, w); };
   } else if(w.fileType==="pdfref"&&w.fileUrl?.startsWith("pdf:")){
-    // ملفات قديمة بنظام chunks — للتوافق العكسي
     rb.textContent="📖 قراءة PDF";
     rb.onclick=async()=>{
       toast("⏳ جاري تحضير الملف القديم...");
@@ -851,12 +860,15 @@ window.openWork=async id=>{
     rb.textContent="📥 تحميل PDF";
     rb.onclick=()=>{ const a=document.createElement("a"); a.href=w.fileUrl; a.download=w.fileName||"manga.pdf"; a.click(); };
   } else if(w.fileUrl?.startsWith("http") && (w.fileUrl.includes(".pdf") || w.fileUrl.includes("/raw/") || w.type==="رواية" || w.type==="كتاب")){
-    // رابط PDF مباشر أو رواية/كتاب — افتح القارئ
     rb.textContent="📖 قراءة في القارئ";
     rb.onclick=()=>{ closeModal("m-work"); openPdfViewer(w.fileUrl, w.fileName||w.title, w); };
   } else if(w.fileUrl?.startsWith("http")){
     rb.textContent="📖 قراءة العمل";
     rb.onclick=()=>window.open(w.fileUrl,"_blank");
+  } else if(w.novelContent){
+    // fallback: نص موجود لكن fileType غير محدد
+    rb.textContent="📖 قراءة الرواية";
+    rb.onclick=()=>{ closeModal("m-work"); openNovelReader(w,[],0); };
   } else { rb.textContent="📄 لا يوجد ملف"; rb.onclick=()=>{}; }
 
   // أعمال مشابهة
@@ -3008,6 +3020,197 @@ async function awardFirstRegBadge(uid){
 }
 
 // ═══════════════════════════════════════════════════════
+// ─── قارئ الروايات النصي ──────────────────────────────
+// ═══════════════════════════════════════════════════════
+let _nvWork = null, _nvChapters = [], _nvChapterIdx = 0;
+let _nvSaveTimer = null, _nvFs = 18, _nvLh = 2.1;
+
+window.openNovelReader = async function(w, chapters=[], chapterIdx=0){
+  _nvWork = w; _nvChapters = chapters; _nvChapterIdx = chapterIdx;
+  const page = document.getElementById('novel-reader-page');
+  const title = document.getElementById('nv-title');
+  const body  = document.getElementById('novel-reader-body');
+  if(!page) return;
+
+  // تطبيق الإعدادات المحفوظة
+  try{
+    const theme = localStorage.getItem('nv_theme')||'sepia';
+    const fs    = parseFloat(localStorage.getItem('nv_fs')||'18');
+    const lh    = parseFloat(localStorage.getItem('nv_lh')||'2.1');
+    _nvFs = fs; _nvLh = lh;
+    page.dataset.theme = theme;
+    document.querySelectorAll('.nv-theme-btn').forEach(b=>b.classList.toggle('active', b.onclick?.toString().includes(theme)));
+    _nvApplyFontStyle();
+  }catch(e){}
+
+  title.textContent = w.title || 'رواية';
+  page.classList.add('nrp-open');
+  document.body.style.overflow = 'hidden';
+
+  await _nvRenderChapter();
+
+  // استئناف القراءة
+  let savedPct = 0;
+  if(CU){
+    try{
+      const key = `${CU.uid}_${w.id}_ch${chapterIdx}`;
+      const snap = await getDoc(doc(db,'readProgress',key));
+      if(snap.exists()) savedPct = snap.data().scrollPct||0;
+    }catch(e){}
+  } else {
+    try{ savedPct = parseFloat(localStorage.getItem('nv_rp_'+w.id+'_'+chapterIdx)||'0'); }catch(e){}
+  }
+  if(savedPct > 3){
+    const rb = document.getElementById('nv-resume-btn');
+    if(rb) rb.classList.add('show');
+    window._nvSavedPct = savedPct;
+  }
+
+  // حفظ تلقائي كل 5 ثوانٍ
+  if(_nvSaveTimer) clearInterval(_nvSaveTimer);
+  _nvSaveTimer = setInterval(_nvSaveProgress, 5000);
+
+  // شريط التقدم
+  body.onscroll = _nvUpdateProgress;
+};
+
+async function _nvRenderChapter(){
+  const textEl  = document.getElementById('nv-text-content');
+  const chTitle = document.getElementById('nv-chapter-title');
+  const navEl   = document.getElementById('nv-chapter-nav');
+  const prevBtn = document.getElementById('nv-prev-btn');
+  const nextBtn = document.getElementById('nv-next-btn');
+  const lbl     = document.getElementById('nv-chapter-lbl');
+  const body    = document.getElementById('novel-reader-body');
+  if(!textEl) return;
+
+  // تحديد النص المراد عرضه
+  let content = '', chapterTitle = '';
+  if(_nvChapters.length > 0){
+    const ch = _nvChapters[_nvChapterIdx];
+    content = ch?.novelContent || ch?.content || '';
+    chapterTitle = ch?.title || ('الفصل ' + (_nvChapterIdx+1));
+    // إظهار تنقل الفصول
+    if(navEl) navEl.style.display = 'flex';
+    if(prevBtn){ prevBtn.disabled = _nvChapterIdx <= 0; }
+    if(nextBtn){ nextBtn.disabled = _nvChapterIdx >= _nvChapters.length-1; }
+    if(lbl) lbl.textContent = `${_nvChapterIdx+1} / ${_nvChapters.length}`;
+  } else {
+    content = _nvWork?.novelContent || '';
+    chapterTitle = _nvWork?.title || '';
+    if(navEl) navEl.style.display = 'none';
+  }
+
+  if(chTitle) chTitle.textContent = chapterTitle;
+  textEl.textContent = content || 'لا يوجد محتوى نصي لهذا العمل بعد.';
+  _nvApplyFontStyle();
+  body.scrollTop = 0;
+  // إخفاء زر الاستئناف عند تغيير الفصل
+  const rb = document.getElementById('nv-resume-btn');
+  if(rb) rb.classList.remove('show');
+}
+
+function _nvApplyFontStyle(){
+  const body = document.getElementById('novel-reader-body');
+  if(body){
+    body.style.setProperty('--nv-fs', _nvFs+'px');
+    body.style.setProperty('--nv-lh', _nvLh);
+  }
+  const lbl = document.getElementById('nv-fs-lbl');
+  if(lbl) lbl.textContent = _nvFs;
+}
+
+function _nvUpdateProgress(){
+  const body = document.getElementById('novel-reader-body');
+  const bar  = document.getElementById('nv-progress-bar');
+  const lbl  = document.getElementById('nv-progress-lbl');
+  if(!body||!bar) return;
+  const total = body.scrollHeight - body.clientHeight;
+  const pct   = total>0 ? Math.round((body.scrollTop/total)*100) : 0;
+  bar.style.width = pct+'%';
+  if(lbl) lbl.textContent = pct+'%';
+}
+
+async function _nvSaveProgress(){
+  const body = document.getElementById('novel-reader-body');
+  if(!body||!_nvWork) return;
+  const total = body.scrollHeight - body.clientHeight;
+  if(total<=0) return;
+  const pct = Math.round((body.scrollTop/total)*100);
+  if(CU){
+    try{
+      const key = `${CU.uid}_${_nvWork.id}_ch${_nvChapterIdx}`;
+      await setDoc(doc(db,'readProgress',key),{
+        uid:CU.uid, workId:_nvWork.id, chapterIdx:_nvChapterIdx,
+        scrollPct:pct, type:'novel', updatedAt:serverTimestamp()
+      });
+    }catch(e){}
+  } else {
+    try{ localStorage.setItem('nv_rp_'+_nvWork.id+'_'+_nvChapterIdx, pct); }catch(e){}
+  }
+}
+
+window.closeNovelReader = async function(){
+  await _nvSaveProgress();
+  if(_nvSaveTimer){ clearInterval(_nvSaveTimer); _nvSaveTimer=null; }
+  const page = document.getElementById('novel-reader-page');
+  if(page) page.classList.remove('nrp-open');
+  document.body.style.overflow = '';
+  _nvWork = null; _nvChapters = []; _nvChapterIdx = 0;
+};
+
+window.nvToggleSettings = function(){
+  document.getElementById('nv-settings-panel')?.classList.toggle('open');
+};
+
+window.nvSetTheme = function(btn, theme){
+  document.getElementById('novel-reader-page').dataset.theme = theme;
+  document.querySelectorAll('.nv-theme-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  try{ localStorage.setItem('nv_theme',theme); }catch(e){}
+};
+
+window.nvChangeFontSize = function(dir){
+  _nvFs = Math.max(14, Math.min(26, _nvFs+dir));
+  _nvApplyFontStyle();
+  try{ localStorage.setItem('nv_fs',_nvFs); }catch(e){}
+};
+
+window.nvChangeLH = function(dir){
+  _nvLh = Math.max(1.5, Math.min(3.0, parseFloat((_nvLh+(dir*0.1)).toFixed(1))));
+  _nvApplyFontStyle();
+  try{ localStorage.setItem('nv_lh',_nvLh); }catch(e){}
+};
+
+window.nvResume = function(){
+  const body = document.getElementById('novel-reader-body');
+  const rb   = document.getElementById('nv-resume-btn');
+  if(!body) return;
+  const total = body.scrollHeight - body.clientHeight;
+  body.scrollTo({top:(window._nvSavedPct/100)*total, behavior:'smooth'});
+  if(rb) rb.classList.remove('show');
+};
+
+window.nvPrevChapter = async function(){
+  if(_nvChapterIdx<=0) return;
+  await _nvSaveProgress();
+  _nvChapterIdx--;
+  await _nvRenderChapter();
+};
+
+window.nvNextChapter = async function(){
+  if(_nvChapterIdx>=_nvChapters.length-1) return;
+  await _nvSaveProgress();
+  _nvChapterIdx++;
+  await _nvRenderChapter();
+};
+
+window.nvUpdateCharCount = function(el){
+  const lbl = document.getElementById('nv-char-count');
+  if(lbl) lbl.textContent = (el.value?.length||0).toLocaleString('ar')+' حرف';
+};
+
+// ═══════════════════════════════════════════════════════
 // ─── تصدير المتغيرات الضرورية إلى window ──────────────
 // حتى يستطيع الكود خارج الـ module استخدامها
 // ═══════════════════════════════════════════════════════
@@ -4685,6 +4888,46 @@ body.light-mode .stab:hover{color:var(--red);}
   .about-hero-title{font-size:2.5rem;}
 }
 
+/* ══════════════════════════════════════
+   قارئ الروايات النصي
+══════════════════════════════════════ */
+#novel-reader-page{display:none;position:fixed;inset:0;z-index:9999;flex-direction:column;overflow:hidden;}
+#novel-reader-page.nrp-open{display:flex;}
+#novel-reader-page[data-theme="dark"]{background:#0f0f0f;--nv-text:#e8e0d0;--nv-accent:#c9a96e;--nv-border:rgba(255,255,255,.08);}
+#novel-reader-page[data-theme="sepia"]{background:#f5f0e8;--nv-text:#2c1810;--nv-accent:#8b1a1a;--nv-border:rgba(0,0,0,.1);}
+#novel-reader-page[data-theme="white"]{background:#ffffff;--nv-text:#1a1a1a;--nv-accent:#c0392b;--nv-border:rgba(0,0,0,.1);}
+.nv-topbar{display:flex;align-items:center;justify-content:space-between;padding:.7rem 1.2rem;background:rgba(0,0,0,.12);backdrop-filter:blur(12px);flex-shrink:0;border-bottom:1px solid var(--nv-border,rgba(0,0,0,.1));}
+.nv-topbar h3{font-size:.92rem;font-weight:800;color:var(--nv-text,#2c1810);margin:0;max-width:55vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.nv-topbar-btns{display:flex;gap:.5rem;align-items:center;}
+.nv-close{background:rgba(0,0,0,.15);border:none;width:34px;height:34px;border-radius:50%;font-size:1rem;cursor:pointer;color:var(--nv-text,#2c1810);display:flex;align-items:center;justify-content:center;transition:background .2s;}
+.nv-close:hover{background:rgba(232,25,44,.2);}
+.nv-settings-btn{background:rgba(0,0,0,.1);border:1px solid var(--nv-border,rgba(0,0,0,.1));width:34px;height:34px;border-radius:50%;font-size:.9rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .2s;}
+.nv-settings-btn:hover{background:rgba(0,0,0,.18);}
+.nv-progress-wrap{height:3px;background:rgba(0,0,0,.1);flex-shrink:0;}
+.nv-progress-bar{height:100%;background:linear-gradient(90deg,var(--red),var(--gold));width:0%;transition:width .3s;}
+.nv-settings-panel{display:none;background:rgba(20,20,30,.97);backdrop-filter:blur(16px);border-bottom:1px solid rgba(255,255,255,.08);padding:.9rem 1.2rem;flex-shrink:0;gap:1.2rem;flex-wrap:wrap;align-items:center;}
+.nv-settings-panel.open{display:flex;}
+.nv-settings-panel label{font-size:.75rem;color:rgba(255,255,255,.55);font-weight:700;margin-left:.4rem;}
+.nv-theme-btn{padding:.3rem .75rem;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);color:rgba(255,255,255,.75);font-family:'Tajawal';font-size:.78rem;cursor:pointer;transition:all .2s;}
+.nv-theme-btn.active,.nv-theme-btn:hover{border-color:var(--gold);color:var(--gold);}
+.nv-fs-btn{width:30px;height:30px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);color:#fff;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.nv-fs-btn:hover{background:rgba(255,255,255,.14);}
+#novel-reader-body{flex:1;overflow-y:auto;padding:2.5rem max(1.2rem,calc((100% - 700px)/2));scroll-behavior:smooth;position:relative;}
+.nv-chapter-title{font-size:1.4rem;font-weight:900;color:var(--nv-accent,#8b1a1a);margin-bottom:1.8rem;padding-bottom:1rem;border-bottom:2px solid currentColor;text-align:center;opacity:.85;}
+.nv-text{font-family:'Tajawal',serif;font-size:var(--nv-fs,1.08rem);line-height:var(--nv-lh,2.1);color:var(--nv-text,#2c1810);white-space:pre-wrap;word-break:break-word;}
+.nv-chapter-nav{display:flex;justify-content:space-between;align-items:center;padding:1.5rem 0 .5rem;margin-top:2rem;border-top:1px solid var(--nv-border,rgba(0,0,0,.1));}
+.nv-nav-btn{padding:.55rem 1.1rem;border-radius:10px;border:1px solid var(--nv-border,rgba(0,0,0,.12));background:rgba(0,0,0,.06);font-family:'Tajawal';font-size:.85rem;font-weight:700;cursor:pointer;color:var(--nv-text,#2c1810);transition:all .2s;}
+.nv-nav-btn:hover:not(:disabled){background:rgba(0,0,0,.13);}
+.nv-nav-btn:disabled{opacity:.3;cursor:not-allowed;}
+#nv-resume-btn{display:none;position:absolute;top:16px;left:50%;transform:translateX(-50%);background:rgba(8,8,15,.95);border:1px solid rgba(232,25,44,.5);border-radius:12px;padding:.7rem 1.4rem;align-items:center;gap:.6rem;cursor:pointer;box-shadow:0 4px 20px rgba(0,0,0,.6);z-index:5;white-space:nowrap;}
+#nv-resume-btn.show{display:flex;}
+#nv-resume-btn span{font-size:.82rem;font-weight:700;color:#f0f0f0;}
+/* محرر الروايات في النشر */
+.novel-pub-wrap{display:none;}
+.novel-pub-wrap.show{display:block;}
+#w-novel-content{min-height:260px;resize:vertical;font-family:'Tajawal';font-size:.95rem;line-height:1.9;direction:rtl;}
+.novel-char-count{font-size:.73rem;color:var(--mu);text-align:left;margin-top:.3rem;}
+
 </style>
 <link rel="manifest" href="/manifest.json">
 <meta name="mobile-web-app-capable" content="yes">
@@ -4752,6 +4995,57 @@ body.light-mode .stab:hover{color:var(--red);}
     <span style="color:var(--red);font-size:.8rem;font-weight:800">←</span>
   </div>
   <div id="reader-content"></div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     قارئ الروايات النصي
+════════════════════════════════════════ -->
+<div id="novel-reader-page" data-theme="sepia">
+  <!-- شريط العلوي -->
+  <div class="nv-topbar">
+    <h3 id="nv-title">رواية</h3>
+    <div class="nv-topbar-btns">
+      <span id="nv-progress-lbl" style="font-size:.76rem;color:var(--nv-text,.5);opacity:.6;font-weight:700"></span>
+      <button class="nv-settings-btn" onclick="window.nvToggleSettings()" title="إعدادات القراءة">⚙️</button>
+      <button class="nv-close" onclick="window.closeNovelReader()">✕</button>
+    </div>
+  </div>
+  <!-- شريط التقدم -->
+  <div class="nv-progress-wrap"><div class="nv-progress-bar" id="nv-progress-bar"></div></div>
+  <!-- لوحة الإعدادات -->
+  <div class="nv-settings-panel" id="nv-settings-panel">
+    <div style="display:flex;align-items:center;gap:.4rem">
+      <label>الخلفية</label>
+      <button class="nv-theme-btn active" onclick="window.nvSetTheme(this,'sepia')">بيج</button>
+      <button class="nv-theme-btn" onclick="window.nvSetTheme(this,'white')">أبيض</button>
+      <button class="nv-theme-btn" onclick="window.nvSetTheme(this,'dark')">داكن</button>
+    </div>
+    <div style="display:flex;align-items:center;gap:.4rem">
+      <label>الخط</label>
+      <button class="nv-fs-btn" onclick="window.nvChangeFontSize(-1)">ا−</button>
+      <span id="nv-fs-lbl" style="font-size:.78rem;color:rgba(255,255,255,.6);min-width:28px;text-align:center">18</span>
+      <button class="nv-fs-btn" onclick="window.nvChangeFontSize(1)">ا+</button>
+    </div>
+    <div style="display:flex;align-items:center;gap:.4rem">
+      <label>التباعد</label>
+      <button class="nv-fs-btn" onclick="window.nvChangeLH(-1)">≡−</button>
+      <button class="nv-fs-btn" onclick="window.nvChangeLH(1)">≡+</button>
+    </div>
+  </div>
+  <!-- المحتوى -->
+  <div id="novel-reader-body">
+    <div id="nv-resume-btn" onclick="window.nvResume()">
+      <span>📌</span><span>أكمل من حيث توقفت</span>
+    </div>
+    <div class="nv-chapter-title" id="nv-chapter-title"></div>
+    <div class="nv-text" id="nv-text-content"></div>
+    <!-- تنقل بين الفصول -->
+    <div class="nv-chapter-nav" id="nv-chapter-nav" style="display:none">
+      <button class="nv-nav-btn" id="nv-prev-btn" onclick="window.nvPrevChapter()">→ الفصل السابق</button>
+      <span id="nv-chapter-lbl" style="font-size:.8rem;opacity:.5;font-weight:700"></span>
+      <button class="nv-nav-btn" id="nv-next-btn" onclick="window.nvNextChapter()">الفصل التالي ←</button>
+    </div>
+  </div>
 </div>
 
 <!-- AUTH MODAL -->
@@ -5011,6 +5305,15 @@ body.light-mode .stab:hover{color:var(--red);}
   🔜 <strong style="color:var(--red)">وضع قريباً:</strong> سيظهر عملك كإعلان للقراء مع صورة الغلاف والوصف فقط — بدون رفع ملف.
 </div>
 <div class="fg"><label>وصف العمل *</label><textarea class="fc" id="w-desc" rows="4" placeholder="اكتب ملخصاً مثيراً..."></textarea></div>
+        <!-- حقل نص الرواية — يظهر فقط عند اختيار رواية أو كتاب -->
+        <div class="novel-pub-wrap" id="novel-pub-wrap">
+          <hr class="section-divider">
+          <div class="fg">
+            <label>📝 نص الرواية / الفصل الأول <span style="font-size:.75rem;color:var(--mu)">(اكتب مباشرة هنا)</span></label>
+            <textarea class="fc" id="w-novel-content" rows="12" placeholder="اكتب نص روايتك هنا...&#10;&#10;يمكنك كتابة الفصل الأول أو كامل الرواية القصيرة.&#10;ستُحفظ تلقائياً وتظهر في قارئ نصي مريح للقراء." oninput="window.nvUpdateCharCount(this)"></textarea>
+            <div class="novel-char-count" id="nv-char-count">0 حرف</div>
+          </div>
+        </div>
         <hr class="section-divider">
         <div class="fg"><label class="opt">🔗 رابط خارجي (Drive, Dropbox...)</label><input class="fc" id="w-url" type="url" placeholder="https://..."></div>
         <hr class="section-divider">
@@ -6835,6 +7138,37 @@ async function loadAboutStats(){
 // ═══════════════════════════════════════════════════════
 // ─── Global Error Handler — يمنع الأخطاء الصامتة ──────
 // ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
+// ─── إظهار/إخفاء حقل نص الرواية في modal النشر ────────
+// ═══════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', function(){
+  const typeSelect = document.getElementById('w-type');
+  if(typeSelect){
+    typeSelect.addEventListener('change', function(){
+      const wrap = document.getElementById('novel-pub-wrap');
+      if(!wrap) return;
+      const isNovel = ['رواية','كتاب'].includes(this.value);
+      wrap.classList.toggle('show', isNovel);
+    });
+  }
+});
+
+// فتح القارئ المناسب (نصي أو صور أو PDF) حسب نوع العمل
+window._openCorrectReader = function(w){
+  if(w.fileType === 'novel' || (w.novelContent && !w.fileUrl && !w.pages?.length)){
+    // رواية نصية مباشرة
+    window.openNovelReader(w, [], 0);
+  } else if(w.fileType === 'pages' && w.pages?.length){
+    window.openReader(w);
+  } else if(w.fileUrl || w.fileType === 'pdf'){
+    window.openPdfViewer(w.fileUrl, w.fileName||w.title, w);
+  } else if(w.novelContent){
+    window.openNovelReader(w, [], 0);
+  } else {
+    toast('⚠️ لا يوجد محتوى للقراءة بعد','w');
+  }
+};
+
 window.addEventListener('unhandledrejection', function(e){
   // تجاهل أخطاء Firebase العادية (مثل permission-denied عند تسجيل الخروج)
   const msg = e.reason?.message || e.reason?.code || '';
