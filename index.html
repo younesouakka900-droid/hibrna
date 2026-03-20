@@ -33,6 +33,7 @@ const FB = { apiKey:"AIzaSyAzRxV19fXvYjY_3LSmW2LVnIYrCbkaVOk", authDomain:"manga
 const app  = initializeApp(FB);
 const auth = getAuth(app);
 const db   = getFirestore(app);
+let _currentChapterId = null; // تعليقات الفصول
 
 // ─── Supabase Storage Upload ───
 const SUPA_URL  = "https://ahmnycfbfonmztxmwqdi.supabase.co";
@@ -1355,7 +1356,6 @@ async function _renderPdfScroll(){
 }
 
 // ─── تعليقات الفصول ───
-let _currentChapterId = null;
 
 window.toggleReaderComments = () => {
   const wrap = G("reader-comments-wrap");
