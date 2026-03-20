@@ -33,6 +33,7 @@ const FB = { apiKey:"AIzaSyAzRxV19fXvYjY_3LSmW2LVnIYrCbkaVOk", authDomain:"manga
 const app  = initializeApp(FB);
 const auth = getAuth(app);
 const db   = getFirestore(app);
+window._db = db; // للوصول من closeModal
 
 // ─── Supabase Storage Upload ───
 const SUPA_URL  = "https://ahmnycfbfonmztxmwqdi.supabase.co";
@@ -640,6 +641,31 @@ function _updateLoadMoreBtn(show){
   G("works-grid").insertAdjacentElement("afterend", wrap);
 }
 
+// ─── Live Reading: تحديث بطاقات القراء كل 30 ثانية ───
+async function updateLiveReadersOnCards(){
+  try{
+    const cards = document.querySelectorAll('.live-reading[id^="live-"]');
+    if(!cards.length) return;
+    const ids = Array.from(cards).map(el => el.id.replace('live-',''));
+    const now = Date.now();
+    await Promise.all(ids.map(async id => {
+      try{
+        const snap = await getDoc(doc(db,"liveReaders",id));
+        const readers = snap.exists() ? snap.data().readers || {} : {};
+        const active = Object.values(readers).filter(t => (now-t) < 3*60*1000).length;
+        const el = document.getElementById(`live-${id}`);
+        if(el){
+          const span = el.querySelector("span");
+          if(span) span.textContent = `${active} يقرأ الآن`;
+          el.classList.toggle("has-readers", active > 0);
+        }
+      }catch(_){}
+    }));
+  }catch(_){}
+}
+// شغّل كل 30 ثانية
+setInterval(updateLiveReadersOnCards, 30000);
+
 // ─── HERO SLIDER ───
 window.loadHeroSlider=async()=>{
   const wrap=G("hero-slider");
@@ -770,6 +796,7 @@ function workCard(w){
         <button class="work-bk-btn ${isBookmarked?"bk-active":""}" onclick="event.stopPropagation();toggleBookmark('${w.id}')">🔖</button>
       </div>
       <button class="wc-share-btn" onclick="shareWork(event,'${w.id}','${escapedTitle}')" title="مشاركة الرابط">🔗</button>
+      <div class="live-reading" id="live-${w.id}"><div class="live-dot"></div><span>0 يقرأ الآن</span></div>
     </div>
     <div class="work-title">${safeTitle} ${w.authorVerified?'<span class="vbadge-sm">✦</span>':''}</div>
     <div class="work-meta">
@@ -808,6 +835,47 @@ window.openWork=async id=>{
     updateDoc(doc(db,"works",id),{views:increment(1)}),
     w.authorId ? setDoc(doc(db,"users",w.authorId),{totalViews:increment(1)},{merge:true}) : Promise.resolve()
   ]).catch(()=>{});
+
+  // 🔥 Live Reading: سجّل القارئ الحالي
+  window._liveWorkId = id;
+  const _liveRef = doc(db,"liveReaders",id);
+  const _readerId = CU ? CU.uid : ("guest_"+Math.random().toString(36).slice(2));
+  window._liveReaderId = _readerId;
+  setDoc(_liveRef, { [`readers.${_readerId}`]: Date.now() }, { merge:true }).catch(()=>{});
+  // دالة async لحذف القارئ عند الإغلاق — يُستدعى من closeModal العادية
+  window._removeLiveReader = async () => {
+    if(!window._liveWorkId || !window._liveReaderId) return;
+    try{
+      const { deleteField } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
+      await updateDoc(doc(db,"liveReaders",window._liveWorkId),{
+        ["readers."+window._liveReaderId]: deleteField()
+      });
+    }catch(_){}
+    window._liveWorkId = null;
+    window._liveReaderId = null;
+  };
+
+  // مستمع فوري لعدد القراء في modal العمل
+  if(window._liveUnsub){ window._liveUnsub(); window._liveUnsub=null; }
+  window._liveUnsub = onSnapshot(_liveRef, snap => {
+    if(!snap.exists()) return;
+    const readers = snap.data().readers || {};
+    const now = Date.now();
+    // القراء النشطون: آخر 3 دقائق
+    const active = Object.values(readers).filter(t => (now - t) < 3 * 60 * 1000).length;
+    const el = document.getElementById("wm-live-count");
+    if(el){
+      el.textContent = active > 0 ? `🔴 ${active} يقرأ الآن` : "";
+      el.style.display = active > 0 ? "inline-flex" : "none";
+    }
+    // تحديث البطاقة في الخلفية
+    const cardLive = document.getElementById(`live-${id}`);
+    if(cardLive){
+      const span = cardLive.querySelector("span");
+      if(span) span.textContent = `${active} يقرأ الآن`;
+      cardLive.classList.toggle("has-readers", active > 0);
+    }
+  });
 
   G("wm-cover").innerHTML=w.coverUrl
     ?`<img src="${w.coverUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:12px;">`
@@ -4648,6 +4716,40 @@ footer a:hover{text-decoration:underline;}
 .upload-tip-icon{font-size:1rem;flex-shrink:0;margin-top:.1rem;}
 
 /* ══ بطاقة قريباً ══ */
+/* ══ LIVE READING INDICATOR ══ */
+.live-reading{
+  position:absolute;bottom:8px;left:8px;
+  display:flex;align-items:center;gap:4px;
+  background:rgba(8,8,15,.85);
+  border:1px solid rgba(232,25,44,.4);
+  backdrop-filter:blur(6px);
+  border-radius:20px;
+  padding:3px 8px;
+  font-size:.65rem;
+  font-weight:800;
+  color:#fff;
+  z-index:2;
+  opacity:0;
+  transform:translateY(4px);
+  transition:opacity .3s, transform .3s;
+  pointer-events:none;
+}
+.live-reading.has-readers{
+  opacity:1;
+  transform:translateY(0);
+}
+.live-dot{
+  width:6px;height:6px;
+  background:#e8192c;
+  border-radius:50%;
+  flex-shrink:0;
+  animation:livePulse 1.2s ease-in-out infinite;
+}
+@keyframes livePulse{
+  0%,100%{transform:scale(1);opacity:1;box-shadow:0 0 0 0 rgba(232,25,44,.6)}
+  50%{transform:scale(1.3);opacity:.8;box-shadow:0 0 0 4px rgba(232,25,44,0)}
+}
+.work-card:hover .live-reading.has-readers{opacity:1;}
 .work-card.coming-soon-card{position:relative;overflow:hidden;}
 .work-card.coming-soon-card::before{content:'';position:absolute;inset:0;background:rgba(8,8,15,.5);z-index:1;}
 .cs-badge{position:absolute;top:.6rem;right:.6rem;z-index:2;
@@ -4778,8 +4880,6 @@ body.light-mode .stab:hover{color:var(--red);}
 <meta name="theme-color" content="#e8192c">
 <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/younesouakka900-droid/%D8%B9%D8%A7%D9%84%D9%85-%D8%A7%D9%84%D9%85%D8%A7%D9%86%D8%AC%D8%A7/main/favicon.png">
 <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/younesouakka900-droid/%D8%B9%D8%A7%D9%84%D9%85-%D8%A7%D9%84%D9%85%D8%A7%D9%86%D8%AC%D8%A7/main/favicon.png">
-<!-- Adsterra Popunder -->
-<script src="https://pl28904726.effectivegatecpm.com/19/00/e9/1900e90ceb43c783f1f16564730d8229.js"></script>
 </head>
 <body>
 
@@ -5159,6 +5259,7 @@ body.light-mode .stab:hover{color:var(--red);}
           <span id="wm-author"></span>&nbsp;•&nbsp;<span id="wm-genre"></span>
         </div>
         <div style="font-size:.8rem;color:var(--mu);margin-bottom:.8rem" id="wm-views"></div>
+        <div id="wm-live-count" style="display:none;align-items:center;gap:5px;background:rgba(232,25,44,.1);border:1px solid rgba(232,25,44,.35);border-radius:20px;padding:3px 10px;font-size:.75rem;font-weight:800;color:var(--red);margin-bottom:.8rem;width:fit-content"></div>
         <div class="wm-desc-box" id="wm-desc"></div>
         <div class="stars-row">
           <div id="wm-stars"></div>
@@ -5441,7 +5542,7 @@ body.light-mode .stab:hover{color:var(--red);}
         <div style="background:var(--s2);border:1px solid var(--br);border-radius:12px;padding:1.3rem;text-align:center;margin-top:1rem;">
           <p style="font-weight:800;font-size:.95rem;margin-bottom:.4rem">📧 تواصل مع الإدارة</p>
           <p style="font-size:.83rem;color:var(--mu);margin-bottom:.7rem">إذا كنت صاحب حقوق ملكية وتجد محتوى منتهكاً، تواصل معنا فوراً.</p>
-          <a href="mailto:younassouakka@gmail.com" style="color:var(--red);font-weight:700;font-size:.88rem">younassouakka@gmail.com</a>
+          <a href="/cdn-cgi/l/email-protection#671e0812090614140812060c0c0627000a060e0b4904080a" style="color:var(--red);font-weight:700;font-size:.88rem"><span class="__cf_email__" data-cfemail="7900160c17180a0a160c18121218391e14181015571a1614">[email&#160;protected]</span></a>
         </div>
       </div>
     </div>
@@ -5571,7 +5672,7 @@ body.light-mode .stab:hover{color:var(--red);}
       <div style="font-size:1.5rem;margin-bottom:.5rem">📬</div>
       <div style="font-weight:800;font-size:1rem;margin-bottom:.4rem">تواصل معنا</div>
       <p>هل لديك اقتراح أو تريد الانضمام إلى فريق MangaVerse؟</p>
-      <a href="mailto:younassouakka@gmail.com" class="contact-btn">✉️ راسلنا</a>
+      <a href="/cdn-cgi/l/email-protection#bcc5d3c9d2ddcfcfd3c9ddd7d7ddfcdbd1ddd5d092dfd3d1" class="contact-btn">✉️ راسلنا</a>
     </div>
   </div>
 
@@ -6136,7 +6237,7 @@ body.light-mode .stab:hover{color:var(--red);}
   </div>
 </div>
 
-<script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 function G(id){return document.getElementById(id);}
 function showPage(n){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
@@ -6204,6 +6305,9 @@ function closeModal(id){
   if(id==='m-work'){
     // ✅ إعادة ضبط قفل openWork عند الإغلاق
     window._openingWork=false;
+    // 🔥 Live Reading: احذف القارئ عند الإغلاق (async منفصلة لتجنب await في دالة عادية)
+    window._removeLiveReader && window._removeLiveReader();
+    if(window._liveUnsub){ window._liveUnsub(); window._liveUnsub=null; }
     const cur=window._curPage||'home';
     if(cur==='home') history.pushState(null,'','#/');
     else if(cur==='profile') history.pushState(null,'','#/profile');
