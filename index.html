@@ -1204,11 +1204,38 @@ window.closeReader=async ()=>{
 let _pdfDoc = null, _pdfPage = 1, _pdfTotal = 0, _pdfSrc = "";
 let _pdfRendering = false;
 
-window.openPdfViewer = (src, title, w) => {
-  if(!src) return toast && toast("⚠️ لا يوجد ملف للقراءة","w");
-  // فتح القارئ المنفصل في نافذة جديدة — يتجاوز مشاكل CORS
-  const url = "/pdf-reader.html?url=" + encodeURIComponent(src) + "&title=" + encodeURIComponent(title||"مستند PDF");
-  window.open(url, "_blank", "noopener");
+window.openPdfViewer = async (src, title, w) => {
+  _pdfSrc = src;
+  G("pdf-viewer-title").textContent = title || "";
+  G("pdf-viewer-page").style.display = "flex";
+  document.body.style.overflow = "hidden";
+  G("pdf-download-btn").onclick = () => window.open(src, "_blank");
+  const wrap = G("pdf-canvas-wrap");
+  wrap.innerHTML = '<div style="text-align:center;padding:3rem;color:rgba(255,255,255,.5)"><span class="spin" style="font-size:2rem">⏳</span><div style="margin-top:1rem">جاري تحميل PDF...</div></div>';
+  if(!window.pdfjsLib){
+    await new Promise((res,rej)=>{const s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";s.onload=res;s.onerror=rej;document.head.appendChild(s);});
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+  }
+  async function _loadPdfData(url){
+    if(url.startsWith("data:")||url.startsWith("blob:")) return url;
+    try{const r=await fetch(url,{method:"GET",mode:"cors"});if(!r.ok)throw new Error();return new Uint8Array(await r.arrayBuffer());}
+    catch(e){return url;}
+  }
+  try{
+    const pdfData=await _loadPdfData(src);
+    const loadingTask=window.pdfjsLib.getDocument({
+      data:pdfData instanceof Uint8Array?pdfData:undefined,
+      url:pdfData instanceof Uint8Array?undefined:pdfData,
+      cMapUrl:"https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/cmaps/",
+      cMapPacked:true,
+      standardFontDataUrl:"https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/standard_fonts/",
+    });
+    _pdfDoc=await loadingTask.promise;
+    _pdfTotal=_pdfDoc.numPages;_pdfPage=1;
+    _updatePdfNav();await _renderPdfPage(_pdfPage);
+  }catch(e){
+    wrap.innerHTML=`<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:50vh;gap:1.2rem;padding:2rem;text-align:center"><div style="font-size:3.5rem">📄</div><div style="font-weight:800;font-size:1.05rem;color:rgba(255,255,255,.85)">${title||"الملف"}</div><div style="font-size:.82rem;color:rgba(255,255,255,.4);max-width:280px;line-height:1.6">يمكن قراءة هذا الملف عبر تطبيق PDF على هاتفك</div><a href="${src}" target="_blank" rel="noopener" style="background:var(--red);color:#fff;padding:.9rem 2.2rem;border-radius:14px;font-family:'Tajawal';font-weight:800;font-size:1rem;text-decoration:none">📥 افتح PDF مباشرة</a></div>`;
+  }
 };
 
 async function _renderPdfPage(num) {
@@ -5972,6 +5999,17 @@ if("serviceWorker" in navigator){
     <button id="btn-delete-account" onclick="closeSidebar();deleteAccount()" style="width:100%;background:transparent;border:1px solid rgba(232,25,44,.3);color:rgba(232,25,44,.6);font-family:'Tajawal';font-size:.82rem;padding:.6rem;border-radius:10px;cursor:pointer;margin-top:.3rem;transition:all .2s" onmouseover="this.style.borderColor='var(--red)';this.style.color='var(--red)'" onmouseout="this.style.borderColor='rgba(232,25,44,.3)';this.style.color='rgba(232,25,44,.6)'">🗑 حذف الحساب نهائياً</button>
   </div>
 
+  <!-- زر تثبيت PWA — مستقل يظهر تلقائياً لأي مستخدم -->
+  <div id="pwa-section" style="display:none;padding:.7rem .8rem;border-top:1px solid var(--br)">
+    <button onclick="installPWA()"
+      style="width:100%;background:linear-gradient(135deg,rgba(139,92,246,.2),rgba(99,102,241,.15));border:1px solid rgba(139,92,246,.5);color:#c4b5fd;font-family:'Tajawal';font-size:.88rem;font-weight:800;padding:.8rem 1rem;border-radius:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:.6rem;transition:all .2s"
+      onmouseover="this.style.background='rgba(139,92,246,.35)'"
+      onmouseout="this.style.background='linear-gradient(135deg,rgba(139,92,246,.2),rgba(99,102,241,.15))'">
+      📲 ثبّت MangaVerse كتطبيق
+    </button>
+    <div style="font-size:.68rem;color:rgba(255,255,255,.25);text-align:center;margin-top:.3rem">يعمل بدون إنترنت بعد التثبيت</div>
+  </div>
+
 </div>
 
 <!-- NAV -->
@@ -7432,7 +7470,15 @@ window.loadCreatorAnalytics = async () => {
 
 // ── 5. PWA ──
 let _pwaPrompt=null;
-window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();_pwaPrompt=e;const b=document.getElementById("pwa-install-btn");if(b)b.style.display="flex";});
+window.addEventListener("beforeinstallprompt",e=>{
+  e.preventDefault(); _pwaPrompt=e;
+  // أظهر القسم المستقل
+  const sec=document.getElementById("pwa-section");
+  if(sec) sec.style.display="block";
+  // أظهر الزر القديم أيضاً إن وجد
+  const btn=document.getElementById("pwa-install-btn");
+  if(btn) btn.style.display="flex";
+});
 window.installPWA=async()=>{if(!_pwaPrompt)return;_pwaPrompt.prompt();const r=await _pwaPrompt.userChoice;if(r.outcome==="accepted"){typeof toast==="function"&&toast("✅ تم تثبيت MangaVerse!");const b=document.getElementById("pwa-install-btn");if(b)b.style.display="none";}_pwaPrompt=null;};
 window.addEventListener("appinstalled",()=>{typeof toast==="function"&&toast("🎉 تم تثبيت MangaVerse!");});
 

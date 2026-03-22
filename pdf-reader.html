@@ -156,13 +156,40 @@ async function fetchPdf(url){
     const r=await fetch(url,{mode:"cors",credentials:"omit"});
     if(r.ok) return new Uint8Array(await r.arrayBuffer());
   }catch(e){}
-  // محاولة 2: fetch عادي
+  // محاولة 2: fetch بدون mode
   try{
-    const r=await fetch(url);
+    const r=await fetch(url,{credentials:"omit"});
     if(r.ok) return new Uint8Array(await r.arrayBuffer());
   }catch(e){}
-  // محاولة 3: أعطِ الرابط مباشرة
+  // محاولة 3: الرابط مباشرة لـ PDF.js
   return url;
+}
+
+// ── عرض بديل بـ <object> إذا فشل PDF.js ──
+function showObjectEmbed(url, title){
+  document.getElementById("loading").style.display="none";
+  document.getElementById("topbar").style.display="flex";
+  document.getElementById("reader-wrap").style.display="flex";
+  document.getElementById("navbar").style.display="none";
+  document.getElementById("progress-bar-wrap").style.display="none";
+  document.getElementById("pdf-title").textContent = title;
+  const wrap = document.getElementById("reader-wrap");
+  wrap.style.flexDirection = "column";
+  wrap.style.padding = "0";
+  wrap.innerHTML = `
+    <object data="${url}#toolbar=1&navpanes=0&scrollbar=1&view=FitH"
+      type="application/pdf"
+      style="width:100%;flex:1;min-height:80vh;border:none;display:block">
+      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;gap:1.2rem;padding:2rem;text-align:center">
+        <div style="font-size:3.5rem">📄</div>
+        <div style="font-weight:800;font-size:1.05rem;color:#e8e0d4">${title}</div>
+        <div style="font-size:.82rem;color:rgba(255,255,255,.4);max-width:280px;line-height:1.6">اضغط الزر أدناه لفتح الملف</div>
+        <a href="${url}" target="_blank" rel="noopener"
+          style="background:#e8192c;color:#fff;padding:.9rem 2.2rem;border-radius:14px;font-family:'Tajawal';font-weight:800;font-size:1rem;text-decoration:none;display:inline-flex;align-items:center;gap:.5rem">
+          📥 افتح PDF مباشرة
+        </a>
+      </div>
+    </object>`;
 }
 
 // ── البدء ──
