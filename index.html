@@ -353,7 +353,9 @@ window.doPublish=async()=>{
   const now = Date.now();
   if(now - _lastPublishTime < 30000) return toast("⚠️ انتظر 30 ثانية بين كل نشر وآخر","w");
   const title=V("w-title"),type=V("w-type"),genre=V("w-genre"),desc=V("w-desc"),status=V("w-status");
-  const humanBadge=document.getElementById("w-human-badge")?.checked||false;
+  const creationType = document.getElementById("w-creation-type")?.value || "";
+  const humanBadge = creationType === "human";
+  const aiAssisted = creationType === "ai";
   const coverFile=G("w-cover-file").files[0];
   const pdfFile=G("w-pdf-file").files[0];
   const extUrl=V("w-url");
@@ -411,13 +413,15 @@ window.doPublish=async()=>{
       authorPoints:CUD?.points||0,
       createdAt:serverTimestamp(),
       humanBadge,
+      aiAssisted,
+      creationType,
       views:0, likes:0, bookmarkCount:0,
       rating:0, ratingCount:0, ratings:{}, comments:[]
     });
     await setDoc(doc(db,"users",CU.uid),{worksCount:increment(1)},{merge:true});
     updateUserPoints(CU.uid);
     ["w-title","w-desc","w-url","w-support","w-audio","w-rss","w-trailer","w-novel-content"].forEach(id=>{const el=G(id);if(el)el.value="";});
-    ["w-cover-file","w-pdf-file","w-pages","w-type","w-genre"].forEach(id=>{const el=G(id);if(el)el.value="";}); const _hb=document.getElementById("w-human-badge");if(_hb)_hb.checked=false;
+    ["w-cover-file","w-pdf-file","w-pages","w-type","w-genre"].forEach(id=>{const el=G(id);if(el)el.value="";}); document.getElementById("w-creation-type") && (document.getElementById("w-creation-type").value=""); if(typeof resetCreationType==="function") resetCreationType();
     const ws=G("w-status"); if(ws) ws.value="مستمر";
     G("cover-prev")?.style&&(G("cover-prev").style.display="none");
     G("pages-count").textContent="";
@@ -749,7 +753,7 @@ function workCard(w){
       </div>
       <button class="wc-share-btn" onclick="shareWork(event,'${w.id}','${escapedTitle}')" title="مشاركة الرابط">🔗</button>
     </div>
-    <div class="work-title">${safeTitle} ${w.authorVerified?'<span class="vbadge-sm">✦</span>':''} ${w.humanBadge?'<span style="font-size:.7rem;vertical-align:middle" title="إبداع بشري 100%">🧠✍️</span>':''}</div>
+    <div class="work-title">${safeTitle} ${w.authorVerified?'<span class="vbadge-sm">✦</span>':''} ${w.humanBadge?'<span style="font-size:.7rem;vertical-align:middle" title="إبداع بشري 100%">🧠✍️</span>':w.aiAssisted?'<span style="font-size:.7rem;vertical-align:middle" title="بمساعدة الذكاء الاصطناعي">🤖</span>':''}</div>
     <div class="work-meta">
       <span style="cursor:pointer" onclick="event.stopPropagation();openPublicProfile('${w.authorId}')">✍️ <span class="${getNameGlowClass({points:w.authorPoints||0,isAdmin:w.authorId==='admin'})}">${safeAuthor}</span></span>
       <span style="color:var(--mu);font-size:.78rem">👁 ${w.views||0}</span>
@@ -794,7 +798,19 @@ window.openWork=async id=>{
   // XSS-safe: نستخدم textContent للبيانات القادمة من المستخدمين
   const titleEl = G("wm-title");
   titleEl.textContent = w.title||"";
-  if(w.humanBadge){const hb=document.createElement("span");hb.title="إبداع بشري 100%";hb.style.cssText="display:inline-flex;align-items:center;gap:.3rem;background:rgba(16,185,129,.15);border:1px solid rgba(16,185,129,.4);color:#10b981;font-size:.62rem;font-weight:800;padding:.15rem .55rem;border-radius:20px;vertical-align:middle;margin-right:.4rem;";hb.textContent="🧠✍️ إبداع بشري";titleEl.appendChild(hb);}
+  if(w.humanBadge){
+    const hb=document.createElement("span");
+    hb.title="إبداع بشري 100% — NO AI";
+    hb.style.cssText="display:inline-flex;align-items:center;gap:.3rem;background:rgba(16,185,129,.15);border:1px solid rgba(16,185,129,.4);color:#10b981;font-size:.62rem;font-weight:800;padding:.15rem .55rem;border-radius:20px;vertical-align:middle;margin-right:.4rem;";
+    hb.textContent="🧠✍️ إبداع بشري";
+    titleEl.appendChild(hb);
+  } else if(w.aiAssisted){
+    const hb=document.createElement("span");
+    hb.title="أُنشئ بمساعدة الذكاء الاصطناعي";
+    hb.style.cssText="display:inline-flex;align-items:center;gap:.3rem;background:rgba(139,92,246,.15);border:1px solid rgba(139,92,246,.4);color:#a78bfa;font-size:.62rem;font-weight:800;padding:.15rem .55rem;border-radius:20px;vertical-align:middle;margin-right:.4rem;";
+    hb.textContent="🤖 AI Assisted";
+    titleEl.appendChild(hb);
+  }
   const badge = document.createElement("span");
   badge.className = `status-badge ${statusClass(w.status)}`;
   badge.textContent = w.status||"مستمر";
@@ -5479,14 +5495,34 @@ if("serviceWorker" in navigator){
         </div>
       </div>
     </div>
-    <div style="margin-bottom:1rem;background:linear-gradient(135deg,rgba(16,185,129,.08),rgba(5,150,105,.05));border:1px solid rgba(16,185,129,.25);border-radius:14px;padding:1rem 1.1rem;cursor:pointer" onclick="document.getElementById('w-human-badge').click()">
-      <div style="display:flex;align-items:center;gap:.8rem">
-        <input type="checkbox" id="w-human-badge" style="width:18px;height:18px;accent-color:#10b981;cursor:pointer;flex-shrink:0" onclick="event.stopPropagation()">
-        <div>
-          <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.2rem"><span>🧠✍️</span><span style="font-weight:800;font-size:.9rem;color:#10b981">إبداع بشري 100%</span><span style="background:rgba(16,185,129,.15);border:1px solid rgba(16,185,129,.4);color:#10b981;font-size:.65rem;font-weight:800;padding:.1rem .4rem;border-radius:20px">NO AI</span></div>
-          <div style="font-size:.76rem;color:rgba(255,255,255,.45)">أؤكد أن هذا العمل كُتب ورُسم بجهد بشري خالص دون استخدام الذكاء الاصطناعي</div>
+    <!-- اختيار نوع الإبداع -->
+    <div style="margin-bottom:1rem">
+      <div style="font-size:.78rem;color:rgba(255,255,255,.5);margin-bottom:.6rem;font-weight:700">🏷️ نوع الإبداع *</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem" id="creation-type-selector">
+        <!-- خيار 1: إبداع بشري -->
+        <div id="opt-human" onclick="selectCreationType('human')"
+          style="border:2px solid rgba(16,185,129,.4);border-radius:12px;padding:.8rem;cursor:pointer;transition:all .2s;background:rgba(16,185,129,.08);position:relative">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:.4rem;text-align:center">
+            <span style="font-size:1.6rem">🧠✍️</span>
+            <span style="font-weight:800;font-size:.82rem;color:#10b981">إبداع بشري</span>
+            <span style="background:rgba(16,185,129,.15);border:1px solid rgba(16,185,129,.4);color:#10b981;font-size:.6rem;font-weight:800;padding:.1rem .35rem;border-radius:20px">NO AI</span>
+            <span style="font-size:.68rem;color:rgba(255,255,255,.4);line-height:1.4">كُتب ورُسم بجهد بشري خالص</span>
+          </div>
+          <div id="check-human" style="position:absolute;top:.4rem;left:.4rem;width:18px;height:18px;border-radius:50%;background:#10b981;display:flex;align-items:center;justify-content:center;font-size:.7rem;display:none">✓</div>
+        </div>
+        <!-- خيار 2: بمساعدة AI -->
+        <div id="opt-ai" onclick="selectCreationType('ai')"
+          style="border:2px solid rgba(255,255,255,.1);border-radius:12px;padding:.8rem;cursor:pointer;transition:all .2s;background:rgba(255,255,255,.03);position:relative">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:.4rem;text-align:center">
+            <span style="font-size:1.6rem">🤖</span>
+            <span style="font-weight:800;font-size:.82rem;color:#a78bfa">بمساعدة AI</span>
+            <span style="background:rgba(139,92,246,.15);border:1px solid rgba(139,92,246,.4);color:#a78bfa;font-size:.6rem;font-weight:800;padding:.1rem .35rem;border-radius:20px">AI Assisted</span>
+            <span style="font-size:.68rem;color:rgba(255,255,255,.4);line-height:1.4">استُخدمت أدوات الذكاء الاصطناعي</span>
+          </div>
+          <div id="check-ai" style="position:absolute;top:.4rem;left:.4rem;width:18px;height:18px;border-radius:50%;background:#8b5cf6;display:flex;align-items:center;justify-content:center;font-size:.7rem;display:none">✓</div>
         </div>
       </div>
+      <input type="hidden" id="w-creation-type" value="">
     </div>
     <button class="sbtn" id="btn-pub" onclick="doPublish()">🚀 نشر العمل الآن</button>
   </div>
@@ -5997,17 +6033,6 @@ if("serviceWorker" in navigator){
     </button>
     <button class="sb-btn sb-btn-danger" onclick="closeSidebar();doLogout()">🚪 تسجيل الخروج</button>
     <button id="btn-delete-account" onclick="closeSidebar();deleteAccount()" style="width:100%;background:transparent;border:1px solid rgba(232,25,44,.3);color:rgba(232,25,44,.6);font-family:'Tajawal';font-size:.82rem;padding:.6rem;border-radius:10px;cursor:pointer;margin-top:.3rem;transition:all .2s" onmouseover="this.style.borderColor='var(--red)';this.style.color='var(--red)'" onmouseout="this.style.borderColor='rgba(232,25,44,.3)';this.style.color='rgba(232,25,44,.6)'">🗑 حذف الحساب نهائياً</button>
-  </div>
-
-  <!-- زر تثبيت PWA — مستقل يظهر تلقائياً لأي مستخدم -->
-  <div id="pwa-section" style="display:none;padding:.7rem .8rem;border-top:1px solid var(--br)">
-    <button onclick="installPWA()"
-      style="width:100%;background:linear-gradient(135deg,rgba(139,92,246,.2),rgba(99,102,241,.15));border:1px solid rgba(139,92,246,.5);color:#c4b5fd;font-family:'Tajawal';font-size:.88rem;font-weight:800;padding:.8rem 1rem;border-radius:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:.6rem;transition:all .2s"
-      onmouseover="this.style.background='rgba(139,92,246,.35)'"
-      onmouseout="this.style.background='linear-gradient(135deg,rgba(139,92,246,.2),rgba(99,102,241,.15))'">
-      📲 ثبّت MangaVerse كتطبيق
-    </button>
-    <div style="font-size:.68rem;color:rgba(255,255,255,.25);text-align:center;margin-top:.3rem">يعمل بدون إنترنت بعد التثبيت</div>
   </div>
 
 </div>
@@ -7470,15 +7495,7 @@ window.loadCreatorAnalytics = async () => {
 
 // ── 5. PWA ──
 let _pwaPrompt=null;
-window.addEventListener("beforeinstallprompt",e=>{
-  e.preventDefault(); _pwaPrompt=e;
-  // أظهر القسم المستقل
-  const sec=document.getElementById("pwa-section");
-  if(sec) sec.style.display="block";
-  // أظهر الزر القديم أيضاً إن وجد
-  const btn=document.getElementById("pwa-install-btn");
-  if(btn) btn.style.display="flex";
-});
+window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();_pwaPrompt=e;const b=document.getElementById("pwa-install-btn");if(b)b.style.display="flex";});
 window.installPWA=async()=>{if(!_pwaPrompt)return;_pwaPrompt.prompt();const r=await _pwaPrompt.userChoice;if(r.outcome==="accepted"){typeof toast==="function"&&toast("✅ تم تثبيت MangaVerse!");const b=document.getElementById("pwa-install-btn");if(b)b.style.display="none";}_pwaPrompt=null;};
 window.addEventListener("appinstalled",()=>{typeof toast==="function"&&toast("🎉 تم تثبيت MangaVerse!");});
 
@@ -7546,5 +7563,53 @@ window.handleAudioUpload=async(inp)=>{
     if(lbl)lbl.textContent=`✅ ${file.name}`;
     typeof toast==="function"&&toast("✅ تم رفع الملف الصوتي!");
   }catch(e){if(lbl)lbl.textContent="❌ فشل الرفع";typeof toast==="function"&&toast("❌ فشل رفع الصوت","e");}
+};
+</script>
+
+<script>
+// ════════════════════════════════════════
+// ── اختيار نوع الإبداع ──
+// ════════════════════════════════════════
+window.selectCreationType = (type) => {
+  const optHuman = document.getElementById("opt-human");
+  const optAi    = document.getElementById("opt-ai");
+  const checkH   = document.getElementById("check-human");
+  const checkA   = document.getElementById("check-ai");
+  const input    = document.getElementById("w-creation-type");
+
+  if(!optHuman || !optAi) return;
+
+  // reset الاثنين
+  optHuman.style.border = "2px solid rgba(16,185,129,.15)";
+  optHuman.style.background = "rgba(255,255,255,.02)";
+  optAi.style.border    = "2px solid rgba(255,255,255,.08)";
+  optAi.style.background = "rgba(255,255,255,.02)";
+  if(checkH) checkH.style.display = "none";
+  if(checkA) checkA.style.display = "none";
+
+  if(type === "human"){
+    optHuman.style.border    = "2px solid #10b981";
+    optHuman.style.background = "rgba(16,185,129,.12)";
+    if(checkH) checkH.style.display = "flex";
+    if(input)  input.value = "human";
+  } else if(type === "ai"){
+    optAi.style.border    = "2px solid #8b5cf6";
+    optAi.style.background = "rgba(139,92,246,.12)";
+    if(checkA) checkA.style.display = "flex";
+    if(input)  input.value = "ai";
+  }
+};
+
+window.resetCreationType = () => {
+  const optHuman = document.getElementById("opt-human");
+  const optAi    = document.getElementById("opt-ai");
+  const checkH   = document.getElementById("check-human");
+  const checkA   = document.getElementById("check-ai");
+  const input    = document.getElementById("w-creation-type");
+  if(optHuman){ optHuman.style.border="2px solid rgba(16,185,129,.4)"; optHuman.style.background="rgba(16,185,129,.08)"; }
+  if(optAi){   optAi.style.border="2px solid rgba(255,255,255,.1)";   optAi.style.background="rgba(255,255,255,.03)"; }
+  if(checkH) checkH.style.display="none";
+  if(checkA) checkA.style.display="none";
+  if(input)  input.value="";
 };
 </script>
