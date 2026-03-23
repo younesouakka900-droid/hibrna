@@ -1363,7 +1363,8 @@ window.toggleBookmark=async id=>{
     if(ws.exists()&&ws.data().authorId!==CU.uid){
       await addDoc(collection(db,"notifications"),{
         toUid:ws.data().authorId,fromName:CU.displayName,
-        msg:`حفظ عملك «${ws.data().title}» في مكتبته`,read:false,createdAt:serverTimestamp()
+        msg:`حفظ عملك «${ws.data().title}» في مكتبته`,read:false,createdAt:serverTimestamp(),
+        workId:id, fromUid:CU.uid
       });
       await setDoc(doc(db,"users",ws.data().authorId),{totalBookmarks:increment(1)},{merge:true});
     }
@@ -1409,7 +1410,7 @@ window.rateWork=async(wid,stars)=>{
     await addDoc(collection(db,"notifications"),{
       toUid:w.authorId, fromName:CU.displayName||"مستخدم",
       msg:`قيّم عملك «${w.title||""}» بـ ${stars} نجوم ⭐`,
-      read:false, createdAt:serverTimestamp()
+      read:false, createdAt:serverTimestamp(), workId:wid, fromUid:CU.uid
     });
   }
   toast("⭐ تقييمك: "+stars+" نجوم!");
@@ -1478,7 +1479,8 @@ window.doComment=async()=>{
     if(w.authorId!==CU.uid){
       await addDoc(collection(db,"notifications"),{
         toUid:w.authorId,fromName:CU.displayName,
-        msg:`علّق على عملك «${w.title}»`,read:false,createdAt:serverTimestamp()
+        msg:`علّق على عملك «${w.title}»`,read:false,createdAt:serverTimestamp(),
+        workId:window._wid, fromUid:CU.uid
       });
     }
   }catch(e){ toast("❌ خطأ","e"); }
@@ -1584,7 +1586,7 @@ window.toggleFollow=async(uid,name)=>{
     // إشعار
     addDoc(collection(db,"notifications"),{
       toUid:uid, fromName:CU.displayName||"مستخدم",
-      msg:"بدأ بمتابعتك 👤", read:false, createdAt:serverTimestamp()
+      msg:"بدأ بمتابعتك 👤", read:false, createdAt:serverTimestamp(), fromUid:CU.uid
     }).catch(()=>{});
     updateFollowBtns(true);
     toast("✅ أنت الآن تتابع "+(name||""));
@@ -1958,6 +1960,10 @@ window.startChatWith = async (otherUid, otherName) => {
     lastMsg:"", lastAt:serverTimestamp(),
     [`unread.${otherUid}`]:0, [`unread.${CU.uid}`]:0
   },{merge:true});
+  // أغلق الـ profile modal قبل فتح المحادثة
+  closeModal("m-public-profile");
+  // احفظ المصدر حتى يعرف زر الرجوع وين يروح
+  window._chatOpenedFromProfile = true;
   openChatRoom(otherUid, otherName, chatId);
 };
 
@@ -2168,7 +2174,9 @@ window.startNotifListener = () => {
       const n    = d.data();
       const time = n.createdAt?.toDate ? _timeAgo(n.createdAt.toDate()) : "";
       const icon = _notifIcon(n.msg||"");
-      return `<div class="notif-item ${n.read?"":"unread"}" onclick="window._markOneRead('${d.id}')">
+      const wId  = n.workId  ? `'${n.workId}'`  : "null";
+      const fUid = n.fromUid ? `'${n.fromUid}'` : "null";
+      return `<div class="notif-item ${n.read?"":"unread"}" style="cursor:pointer" onclick="window._markOneRead('${d.id}',${wId},${fUid})">
         <div class="notif-icon-wrap">${icon}</div>
         <div style="flex:1;min-width:0">
           <div style="font-size:.82rem;line-height:1.5">
@@ -2214,9 +2222,18 @@ function _timeAgo(date){
   return date.toLocaleDateString("ar-SA");
 }
 
-// تحديد إشعار واحد كمقروء عند النقر عليه
-window._markOneRead = async (notifId) => {
+// تحديد إشعار واحد كمقروء عند النقر عليه وفتح المحتوى المرتبط
+window._markOneRead = async (notifId, workId, fromUid) => {
   try{ await updateDoc(doc(db,"notifications",notifId),{read:true}); }catch(e){}
+  // أغلق قائمة الإشعارات
+  const panel = G("notif-panel");
+  if(panel) panel.classList.remove("open");
+  // افتح المحتوى المرتبط
+  if(workId){
+    openWork(workId);
+  } else if(fromUid){
+    openPublicProfile(fromUid);
+  }
 };
 
 // تحديد كل الإشعارات كمقروءة
@@ -2362,6 +2379,7 @@ window.openPublicProfile = async (uid) => {
   G("pp-av").style.backgroundImage    = "none";
   G("pp-av").textContent              = "?";
   G("pp-social-links").innerHTML      = "";
+  const ppStatLikes = G("pp-stat-likes"); if(ppStatLikes) ppStatLikes.textContent = "0";
   openModal("m-public-profile");
 
   try {
@@ -4086,6 +4104,10 @@ textarea.fc{resize:none;}
 footer{background:#050508;border-top:1px solid var(--br);padding:2rem;text-align:center;color:rgba(255,255,255,.18);font-size:.82rem;}
 footer a{color:var(--gold);text-decoration:none;font-weight:700;}
 footer a:hover{text-decoration:underline;}
+.ft-social{display:inline-flex;align-items:center;gap:.3rem;padding:.35rem .75rem;border-radius:20px;border:1px solid var(--br);color:rgba(255,255,255,.45)!important;font-size:.78rem;font-weight:700;text-decoration:none!important;transition:all .2s;background:rgba(255,255,255,.04);}
+.ft-social:hover{border-color:var(--red);color:var(--w)!important;background:rgba(232,25,44,.08);text-decoration:none!important;}
+body.light-mode .ft-social{color:rgba(0,0,0,.5)!important;border-color:rgba(0,0,0,.12);background:rgba(0,0,0,.03);}
+body.light-mode .ft-social:hover{color:var(--red)!important;border-color:var(--red);}
 
 @media(max-width:850px){
   .wm-body{grid-template-columns:1fr;}
@@ -5334,7 +5356,7 @@ if("serviceWorker" in navigator){
   <div class="md" style="max-width:500px;height:88vh;max-height:88vh;display:flex;flex-direction:column;padding:0;overflow:hidden">
     <!-- رأس المحادثة -->
     <div style="padding:.9rem 1rem;border-bottom:1px solid var(--br);display:flex;align-items:center;gap:.8rem;flex-shrink:0">
-      <button onclick="closeModal('m-chat-room');openChat()" style="background:transparent;border:none;color:var(--mu);font-size:1.3rem;cursor:pointer;padding:.2rem">‹</button>
+      <button onclick="closeModal('m-chat-room');if(window._chatOpenedFromProfile){window._chatOpenedFromProfile=false;}else{openChat();}" style="background:transparent;border:none;color:var(--mu);font-size:1.3rem;cursor:pointer;padding:.2rem">‹</button>
       <div style="font-weight:800;font-size:.95rem;flex:1" id="chat-room-title"></div>
       <button onclick="closeModal('m-chat-room')" style="background:transparent;border:none;color:var(--mu);font-size:1.1rem;cursor:pointer">✕</button>
     </div>
@@ -6129,9 +6151,26 @@ if("serviceWorker" in navigator){
     <button id="btn-delete-account" onclick="closeSidebar();deleteAccount()" style="width:100%;background:transparent;border:1px solid rgba(232,25,44,.3);color:rgba(232,25,44,.6);font-family:'Tajawal';font-size:.82rem;padding:.6rem;border-radius:10px;cursor:pointer;margin-top:.3rem;transition:all .2s" onmouseover="this.style.borderColor='var(--red)';this.style.color='var(--red)'" onmouseout="this.style.borderColor='rgba(232,25,44,.3)';this.style.color='rgba(232,25,44,.6)'">🗑 حذف الحساب نهائياً</button>
   </div>
 
-</div>
+  <!-- تواصل معنا -->
+  <div class="sb-section">
+    <div class="sb-section-label">تابع MangaVerse</div>
+    <div style="display:flex;flex-wrap:wrap;gap:.5rem;padding:.3rem .2rem">
+      <a href="https://x.com/manga_vers35055" target="_blank" rel="noopener" title="تويتر" style="display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:10px;background:rgba(255,255,255,.06);border:1px solid var(--br);color:var(--w);font-size:1rem;text-decoration:none;transition:all .2s" onmouseover="this.style.background='rgba(29,161,242,.15)';this.style.borderColor='#1da1f2'" onmouseout="this.style.background='rgba(255,255,255,.06)';this.style.borderColor='var(--br)'">𝕏</a>
+      <a href="https://www.instagram.com/mangaverse.top" target="_blank" rel="noopener" title="إنستغرام" style="display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:10px;background:rgba(255,255,255,.06);border:1px solid var(--br);color:var(--w);font-size:1rem;text-decoration:none;transition:all .2s" onmouseover="this.style.background='rgba(225,48,108,.15)';this.style.borderColor='#e1306c'" onmouseout="this.style.background='rgba(255,255,255,.06)';this.style.borderColor='var(--br)'">📸</a>
+      <a href="https://www.facebook.com/profile.php?id=61578487355771" target="_blank" rel="noopener" title="فيسبوك" style="display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:10px;background:rgba(255,255,255,.06);border:1px solid var(--br);color:var(--w);font-size:1rem;text-decoration:none;transition:all .2s" onmouseover="this.style.background='rgba(24,119,242,.15)';this.style.borderColor='#1877f2'" onmouseout="this.style.background='rgba(255,255,255,.06)';this.style.borderColor='var(--br)'">📘</a>
+      <a href="https://youtube.com/@mangaverse-i3e" target="_blank" rel="noopener" title="يوتيوب" style="display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:10px;background:rgba(255,255,255,.06);border:1px solid var(--br);color:var(--w);font-size:1rem;text-decoration:none;transition:all .2s" onmouseover="this.style.background='rgba(255,0,0,.15)';this.style.borderColor='#ff0000'" onmouseout="this.style.background='rgba(255,255,255,.06)';this.style.borderColor='var(--br)'">▶️</a>
+      <a href="https://www.twitch.tv/manga_verse" target="_blank" rel="noopener" title="تويتش" style="display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:10px;background:rgba(255,255,255,.06);border:1px solid var(--br);color:var(--w);font-size:1rem;text-decoration:none;transition:all .2s" onmouseover="this.style.background='rgba(145,70,255,.15)';this.style.borderColor='#9146ff'" onmouseout="this.style.background='rgba(255,255,255,.06)';this.style.borderColor='var(--br)'">🎮</a>
+      <a href="https://kick.com/mangaverse" target="_blank" rel="noopener" title="كيك" style="display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:10px;background:rgba(255,255,255,.06);border:1px solid var(--br);color:var(--w);font-size:1rem;text-decoration:none;transition:all .2s" onmouseover="this.style.background='rgba(83,185,84,.15)';this.style.borderColor='#53b954'" onmouseout="this.style.background='rgba(255,255,255,.06)';this.style.borderColor='var(--br)'">🟢</a>
+      <a href="https://chat.whatsapp.com/BqzEYxmH3ZcKIMwpNWoW0F" target="_blank" rel="noopener" title="مجموعة واتساب" style="display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:10px;background:rgba(255,255,255,.06);border:1px solid var(--br);color:var(--w);font-size:1rem;text-decoration:none;transition:all .2s" onmouseover="this.style.background='rgba(37,211,102,.15)';this.style.borderColor='#25d366'" onmouseout="this.style.background='rgba(255,255,255,.06)';this.style.borderColor='var(--br)'">💬</a>
+      <a href="https://whatsapp.com/channel/0029VbC5JZ79RZAcrK9NWv0E" target="_blank" rel="noopener" title="قناة واتساب" style="display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:10px;background:rgba(255,255,255,.06);border:1px solid var(--br);color:var(--w);font-size:1rem;text-decoration:none;transition:all .2s" onmouseover="this.style.background='rgba(37,211,102,.15)';this.style.borderColor='#25d366'" onmouseout="this.style.background='rgba(255,255,255,.06)';this.style.borderColor='var(--br)'">📢</a>
+      <a href="https://discord.com/users/mangaverse.top" target="_blank" rel="noopener" title="ديسكورد: mangaverse.top" style="display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:10px;background:rgba(255,255,255,.06);border:1px solid var(--br);color:var(--w);font-size:1rem;text-decoration:none;transition:all .2s" onmouseover="this.style.background='rgba(88,101,242,.15)';this.style.borderColor='#5865f2'" onmouseout="this.style.background='rgba(255,255,255,.06)';this.style.borderColor='var(--br)'">🎧</a>
+    </div>
+    <a href="https://www.paypal.me/YounesOuakka699" target="_blank" rel="noopener" style="display:flex;align-items:center;justify-content:center;gap:.5rem;width:100%;background:linear-gradient(135deg,rgba(0,112,243,.2),rgba(0,82,204,.15));border:1px solid rgba(0,112,243,.4);color:#60a5fa;font-family:'Tajawal';font-size:.88rem;font-weight:800;padding:.7rem;border-radius:10px;text-decoration:none;margin-top:.4rem;transition:all .2s" onmouseover="this.style.background='linear-gradient(135deg,rgba(0,112,243,.3),rgba(0,82,204,.25))';this.style.borderColor='rgba(0,112,243,.7)'" onmouseout="this.style.background='linear-gradient(135deg,rgba(0,112,243,.2),rgba(0,82,204,.15))';this.style.borderColor='rgba(0,112,243,.4)'">
+      💙 ادعم المنصة عبر PayPal
+    </a>
+  </div>
 
-<!-- NAV -->
+</div>
 <nav>
   <div class="logo" onclick="showPage('home')"><div class="hx">M</div><span class="logo-text">MANGA<span style="color:var(--red)">VERSE</span></span></div>
   <div class="nav-search">
@@ -6424,6 +6463,22 @@ if("serviceWorker" in navigator){
   </section>
 
   <footer>
+    <div style="display:flex;flex-wrap:wrap;justify-content:center;gap:.6rem;margin-bottom:1.2rem">
+      <a href="https://x.com/manga_vers35055" target="_blank" rel="noopener" class="ft-social" title="تويتر">𝕏 تويتر</a>
+      <a href="https://www.instagram.com/mangaverse.top" target="_blank" rel="noopener" class="ft-social" title="إنستغرام">📸 إنستغرام</a>
+      <a href="https://www.facebook.com/profile.php?id=61578487355771" target="_blank" rel="noopener" class="ft-social" title="فيسبوك">📘 فيسبوك</a>
+      <a href="https://youtube.com/@mangaverse-i3e" target="_blank" rel="noopener" class="ft-social" title="يوتيوب">▶️ يوتيوب</a>
+      <a href="https://www.twitch.tv/manga_verse" target="_blank" rel="noopener" class="ft-social" title="تويتش">🎮 تويتش</a>
+      <a href="https://kick.com/mangaverse" target="_blank" rel="noopener" class="ft-social" title="كيك">🟢 Kick</a>
+      <a href="https://chat.whatsapp.com/BqzEYxmH3ZcKIMwpNWoW0F" target="_blank" rel="noopener" class="ft-social" title="مجموعة واتساب">💬 مجموعة واتساب</a>
+      <a href="https://whatsapp.com/channel/0029VbC5JZ79RZAcrK9NWv0E" target="_blank" rel="noopener" class="ft-social" title="قناة واتساب">📢 قناة واتساب</a>
+      <a href="https://discord.com/users/mangaverse.top" target="_blank" rel="noopener" class="ft-social" title="ديسكورد">🎧 ديسكورد</a>
+    </div>
+    <div style="margin-bottom:1.2rem">
+      <a href="https://www.paypal.me/YounesOuakka699" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:.6rem;background:linear-gradient(135deg,#0070f3,#0052cc);color:#fff;font-family:'Tajawal';font-size:.95rem;font-weight:800;padding:.75rem 2rem;border-radius:14px;text-decoration:none;box-shadow:0 4px 18px rgba(0,112,243,.35);transition:all .25s" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 28px rgba(0,112,243,.5)'" onmouseout="this.style.transform='none';this.style.boxShadow='0 4px 18px rgba(0,112,243,.35)'">
+        💙 ادعم المنصة عبر PayPal
+      </a>
+    </div>
     <p>© 2025 MangaVerse — صُنع بـ ❤️ للمبدعين العرب | YOUNES OUAKKA</p>
     <p style="margin-top:.5rem">
       <a href="https://mahbarat-alkhiyal.com" target="_blank">✦ محبرة الخيال — مجتمع المبدعين العرب</a>
@@ -6611,11 +6666,12 @@ if("serviceWorker" in navigator){
       <div style="display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:1.2rem" id="pp-social-links"></div>
 
       <!-- إحصائيات -->
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:.7rem;margin-bottom:1.5rem">
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:.7rem;margin-bottom:1.5rem">
         <div class="stat-card"><div class="sv" id="pp-followers">0</div><div class="sl">متابع</div></div>
         <div class="stat-card"><div class="sv" id="pp-following">0</div><div class="sl">يتابع</div></div>
         <div class="stat-card"><div class="sv" id="pp-works-count">0</div><div class="sl">عمل</div></div>
         <div class="stat-card"><div class="sv" id="pp-stat-views">0</div><div class="sl">مشاهدة</div></div>
+        <div class="stat-card"><div class="sv" id="pp-stat-likes">0</div><div class="sl">إعجاب</div></div>
       </div>
 
       <!-- أعمال المبدع -->

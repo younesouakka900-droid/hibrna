@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MangaVerse — QR Code</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Tajawal:wght@400;700;800;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+  :root {
+    --red: #e8192c;
+    --gold: #f5a623;
+    --bg: #08080f;
+    --s1: #0f0f1a;
+    --s2: #1a1a2e;
+    --br: rgba(255,255,255,.08);
+    --w: #f0f0ff;
+    --mu: rgba(240,240,255,.45);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--w);
+    font-family: 'Tajawal', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1rem;
+    overflow-x: hidden;
+  }
+
+  /* خلفية متحركة */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 60% 50% at 20% 20%, rgba(232,25,44,.12) 0%, transparent 60%),
+      radial-gradient(ellipse 40% 60% at 80% 80%, rgba(124,58,237,.1) 0%, transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 520px;
+  }
+
+  /* ── Header ── */
+  .header {
+    text-align: center;
+    margin-bottom: 2rem;
+  }
+
+  .logo-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: .6rem;
+    margin-bottom: .8rem;
+  }
+
+  .logo-hex {
+    width: 42px; height: 42px;
+    background: var(--red);
+    clip-path: polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Bebas Neue'; font-size: 1.1rem; color: #fff;
+  }
+
+  .logo-text {
+    font-family: 'Bebas Neue';
+    font-size: 1.8rem;
+    letter-spacing: 2px;
+    color: var(--w);
+  }
+
+  .logo-text span { color: var(--red); }
+
+  .header h1 {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--mu);
+    letter-spacing: .5px;
+  }
+
+  /* ── QR Card ── */
+  .qr-card {
+    background: var(--s1);
+    border: 1px solid var(--br);
+    border-radius: 24px;
+    padding: 2rem;
+    box-shadow: 0 20px 60px rgba(0,0,0,.5), 0 0 0 1px rgba(232,25,44,.1);
+    margin-bottom: 1.5rem;
+  }
+
+  /* معاينة QR النهائي */
+  .qr-preview-wrap {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 1.5rem;
+  }
+
+  #qr-final-canvas {
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(0,0,0,.4);
+    max-width: 100%;
+  }
+
+  /* QR مخفي للتوليد */
+  #qr-raw { display: none; }
+
+  /* ── خيارات التخصيص ── */
+  .options-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1.2rem;
+  }
+
+  .opt-group label {
+    display: block;
+    font-size: .75rem;
+    font-weight: 800;
+    color: var(--mu);
+    margin-bottom: .4rem;
+    text-transform: uppercase;
+    letter-spacing: .8px;
+  }
+
+  .color-row {
+    display: flex;
+    gap: .4rem;
+    flex-wrap: wrap;
+  }
+
+  .color-dot {
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: all .18s;
+  }
+
+  .color-dot:hover { transform: scale(1.15); }
+  .color-dot.active { border-color: #fff; box-shadow: 0 0 0 2px var(--red); }
+
+  .style-chips {
+    display: flex;
+    gap: .4rem;
+    flex-wrap: wrap;
+  }
+
+  .chip {
+    padding: .28rem .65rem;
+    border-radius: 20px;
+    border: 1px solid var(--br);
+    color: var(--mu);
+    font-size: .73rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all .18s;
+    background: transparent;
+    font-family: 'Tajawal';
+  }
+
+  .chip:hover { border-color: var(--red); color: var(--red); }
+  .chip.active { background: rgba(232,25,44,.15); border-color: var(--red); color: var(--red); }
+
+  /* حجم */
+  .size-slider {
+    width: 100%;
+    accent-color: var(--red);
+    cursor: pointer;
+  }
+
+  .size-label {
+    font-size: .75rem;
+    color: var(--mu);
+    margin-top: .3rem;
+  }
+
+  /* ── أزرار التحميل ── */
+  .dl-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: .7rem;
+  }
+
+  .dl-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: .4rem;
+    padding: .8rem;
+    border-radius: 12px;
+    border: none;
+    cursor: pointer;
+    font-family: 'Tajawal';
+    font-size: .88rem;
+    font-weight: 800;
+    transition: all .22s;
+  }
+
+  .dl-btn-png {
+    background: linear-gradient(135deg, var(--red), #c0001f);
+    color: #fff;
+    box-shadow: 0 4px 16px rgba(232,25,44,.3);
+  }
+
+  .dl-btn-png:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(232,25,44,.45);
+  }
+
+  .dl-btn-svg {
+    background: rgba(255,255,255,.06);
+    border: 1px solid var(--br);
+    color: var(--w);
+  }
+
+  .dl-btn-svg:hover {
+    background: rgba(255,255,255,.1);
+    border-color: rgba(255,255,255,.2);
+    transform: translateY(-2px);
+  }
+
+  /* ── معلومات ── */
+  .info-bar {
+    text-align: center;
+    font-size: .78rem;
+    color: var(--mu);
+    padding: .8rem;
+    background: rgba(255,255,255,.03);
+    border: 1px solid var(--br);
+    border-radius: 12px;
+    line-height: 1.6;
+  }
+
+  .info-bar strong { color: var(--gold); }
+
+  /* ── تأثير scan ── */
+  @keyframes scanline {
+    0%   { top: 10%; opacity: 1; }
+    100% { top: 90%; opacity: 0; }
+  }
+
+  .scan-hint {
+    text-align: center;
+    font-size: .78rem;
+    color: var(--mu);
+    margin-top: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: .4rem;
+  }
+
+  .scan-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--red);
+    animation: pulse 1.5s infinite;
+  }
+
+  @keyframes pulse {
+    0%,100% { opacity: 1; transform: scale(1); }
+    50%      { opacity: .4; transform: scale(.7); }
+  }
+
+  @media (max-width: 480px) {
+    .options-grid { grid-template-columns: 1fr; }
+    .dl-row { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <div class="header">
+    <div class="logo-wrap">
+      <div class="logo-hex">M</div>
+      <div class="logo-text">MANGA<span>VERSE</span></div>
+    </div>
+    <h1>باركود QR الرسمي للمنصة</h1>
+  </div>
+
+  <div class="qr-card">
+
+    <!-- معاينة -->
+    <div class="qr-preview-wrap">
+      <canvas id="qr-final-canvas"></canvas>
+    </div>
+
+    <!-- عنصر QR المخفي -->
+    <div id="qr-raw"></div>
+
+    <!-- خيارات -->
+    <div class="options-grid">
+
+      <div class="opt-group">
+        <label>🎨 لون QR</label>
+        <div class="color-row" id="fg-colors">
+          <div class="color-dot active" style="background:#e8192c" data-color="#e8192c" title="أحمر MangaVerse"></div>
+          <div class="color-dot" style="background:#ffffff" data-color="#ffffff" title="أبيض"></div>
+          <div class="color-dot" style="background:#f5a623" data-color="#f5a623" title="ذهبي"></div>
+          <div class="color-dot" style="background:#7c3aed" data-color="#7c3aed" title="بنفسجي"></div>
+          <div class="color-dot" style="background:#0ea5e9" data-color="#0ea5e9" title="أزرق"></div>
+          <div class="color-dot" style="background:#10b981" data-color="#10b981" title="أخضر"></div>
+        </div>
+      </div>
+
+      <div class="opt-group">
+        <label>🖼 خلفية QR</label>
+        <div class="color-row" id="bg-colors">
+          <div class="color-dot active" style="background:#08080f;border:1px solid rgba(255,255,255,.2)" data-color="#08080f" title="داكن"></div>
+          <div class="color-dot" style="background:#ffffff" data-color="#ffffff" title="أبيض"></div>
+          <div class="color-dot" style="background:#0f0f1a;border:1px solid rgba(255,255,255,.2)" data-color="#0f0f1a" title="داكن 2"></div>
+          <div class="color-dot" style="background:#1a1a2e;border:1px solid rgba(255,255,255,.2)" data-color="#1a1a2e" title="داكن 3"></div>
+          <div class="color-dot" style="background:transparent;border:2px dashed rgba(255,255,255,.3)" data-color="transparent" title="شفاف"></div>
+        </div>
+      </div>
+
+      <div class="opt-group">
+        <label>✨ النمط</label>
+        <div class="style-chips" id="style-chips">
+          <button class="chip active" data-style="logo">مع لوغو</button>
+          <button class="chip" data-style="plain">بدون لوغو</button>
+          <button class="chip" data-style="frame">مع إطار</button>
+        </div>
+      </div>
+
+      <div class="opt-group">
+        <label>📐 الحجم: <span id="size-val">300</span>px</label>
+        <input type="range" class="size-slider" id="size-slider" min="200" max="600" value="300" step="50">
+      </div>
+
+    </div>
+
+    <!-- أزرار التحميل -->
+    <div class="dl-row">
+      <button class="dl-btn dl-btn-png" onclick="downloadPNG()">⬇️ تحميل PNG</button>
+      <button class="dl-btn dl-btn-svg" onclick="downloadSVG()">⬇️ تحميل SVG</button>
+    </div>
+
+  </div>
+
+  <div class="info-bar">
+    امسح الكود بكاميرا هاتفك للدخول إلى<br>
+    <strong>mangaverse.top</strong> — منصة المانجا والإبداع العربي
+  </div>
+
+  <div class="scan-hint">
+    <div class="scan-dot"></div>
+    جاهز للمسح
+  </div>
+
+</div>
+
+<script>
+// ── إعدادات ──
+const TARGET_URL = 'https://mangaverse.top';
+let fgColor     = '#e8192c';
+let bgColor     = '#08080f';
+let qrSize      = 300;
+let qrStyle     = 'logo'; // logo | plain | frame
+let qrInstance  = null;
+
+// ── توليد QR خام ──
+function generateRawQR(size) {
+  const wrap = document.getElementById('qr-raw');
+  wrap.innerHTML = '';
+  qrInstance = new QRCode(wrap, {
+    text: TARGET_URL,
+    width: size,
+    height: size,
+    colorDark: fgColor === 'transparent' ? '#000000' : fgColor,
+    colorLight: bgColor === 'transparent' ? '#ffffff' : bgColor,
+    correctLevel: QRCode.CorrectLevel.H  // H = high error correction للوغو
+  });
+}
+
+// ── رسم QR المخصص على Canvas ──
+async function drawCustomQR() {
+  const size   = qrSize;
+  const canvas = document.getElementById('qr-final-canvas');
+  const ctx    = canvas.getContext('2d');
+  canvas.width  = size;
+  canvas.height = qrStyle === 'frame' ? size + 80 : size;
+
+  // انتظر توليد QR
+  generateRawQR(size);
+  await new Promise(r => setTimeout(r, 150));
+
+  const rawCanvas = document.querySelector('#qr-raw canvas');
+  if (!rawCanvas) return;
+
+  // ── خلفية ──
+  if (bgColor === 'transparent') {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  } else {
+    ctx.fillStyle = bgColor;
+    if (qrStyle === 'frame') {
+      // إطار مستدير للكل
+      roundRect(ctx, 0, 0, canvas.width, canvas.height, 20);
+      ctx.fill();
+    } else {
+      roundRect(ctx, 0, 0, canvas.width, canvas.height, 16);
+      ctx.fill();
+    }
+  }
+
+  // ── ارسم QR ──
+  const qrY = qrStyle === 'frame' ? 60 : 0;
+  ctx.drawImage(rawCanvas, 0, qrY, size, size);
+
+  // ── لوغو في المنتصف ──
+  if (qrStyle === 'logo') {
+    await drawLogo(ctx, size, qrY);
+  }
+
+  // ── إطار مع نص ──
+  if (qrStyle === 'frame') {
+    drawFrame(ctx, size);
+  }
+}
+
+// رسم اللوغو
+async function drawLogo(ctx, size, offsetY = 0) {
+  const lSize  = Math.round(size * 0.18);
+  const lX     = (size - lSize) / 2;
+  const lY     = offsetY + (size - lSize) / 2;
+  const radius = lSize * 0.22;
+
+  // خلفية لوغو بيضاء/داكنة
+  const bgIsDark = bgColor !== '#ffffff' && bgColor !== 'transparent';
+  ctx.fillStyle = bgIsDark ? '#ffffff' : '#08080f';
+  roundRect(ctx, lX - 6, lY - 6, lSize + 12, lSize + 12, radius + 4);
+  ctx.fill();
+
+  // Hexagon أحمر
+  ctx.save();
+  ctx.translate(lX + lSize/2, lY + lSize/2);
+  const r = lSize * 0.46;
+  ctx.beginPath();
+  for (let i = 0; i < 6; i++) {
+    const angle = (Math.PI / 3) * i - Math.PI / 6;
+    const px = r * Math.cos(angle);
+    const py = r * Math.sin(angle);
+    i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+  ctx.fillStyle = '#e8192c';
+  ctx.fill();
+
+  // حرف M
+  ctx.fillStyle = '#ffffff';
+  ctx.font = `bold ${Math.round(lSize * 0.45)}px 'Bebas Neue', sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('M', 0, 1);
+  ctx.restore();
+}
+
+// رسم الإطار مع نص
+function drawFrame(ctx, size) {
+  // شريط علوي
+  ctx.fillStyle = '#e8192c';
+  roundRect(ctx, 0, 0, size, 52, { tl:16, tr:16, bl:0, br:0 });
+  ctx.fill();
+
+  // نص MANGAVERSE
+  ctx.fillStyle = '#ffffff';
+  ctx.font = `800 22px 'Bebas Neue', sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.letterSpacing = '3px';
+  ctx.fillText('MANGAVERSE', size / 2, 26);
+  ctx.letterSpacing = '0px';
+
+  // نص الرابط في الأسفل
+  ctx.fillStyle = fgColor === '#08080f' || fgColor === '#0f0f1a' ? '#ffffff' : (fgColor === 'transparent' ? '#ffffff' : fgColor);
+  ctx.globalAlpha = 0.7;
+  ctx.font = `700 13px 'Tajawal', sans-serif`;
+  ctx.fillText('mangaverse.top', size / 2, size + 68);
+  ctx.globalAlpha = 1;
+}
+
+// helper: rounded rect
+function roundRect(ctx, x, y, w, h, r) {
+  if (typeof r === 'number') r = { tl:r, tr:r, br:r, bl:r };
+  ctx.beginPath();
+  ctx.moveTo(x + r.tl, y);
+  ctx.lineTo(x + w - r.tr, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r.tr);
+  ctx.lineTo(x + w, y + h - r.br);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r.br, y + h);
+  ctx.lineTo(x + r.bl, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r.bl);
+  ctx.lineTo(x, y + r.tl);
+  ctx.quadraticCurveTo(x, y, x + r.tl, y);
+  ctx.closePath();
+}
+
+// ── تحميل PNG ──
+function downloadPNG() {
+  const canvas = document.getElementById('qr-final-canvas');
+  const link   = document.createElement('a');
+  link.download = `mangaverse-qr-${qrSize}px.png`;
+  link.href    = canvas.toDataURL('image/png');
+  link.click();
+}
+
+// ── تحميل SVG (QR بسيط) ──
+function downloadSVG() {
+  const s    = qrSize;
+  const mod  = 25; // modules in QR
+  const cell = s / mod;
+  const bg   = bgColor === 'transparent' ? 'none' : bgColor;
+  const fg   = fgColor;
+
+  // نأخذ بيانات QR من Canvas المولّد
+  const rawCanvas = document.querySelector('#qr-raw canvas');
+  if (!rawCanvas) return;
+
+  const tmpCtx = rawCanvas.getContext('2d');
+  const imgData = tmpCtx.getImageData(0, 0, rawCanvas.width, rawCanvas.height);
+  const w = rawCanvas.width;
+  const cellPx = w / mod;
+
+  let rects = '';
+  for (let row = 0; row < mod; row++) {
+    for (let col = 0; col < mod; col++) {
+      const px = Math.round(col * cellPx + cellPx/2);
+      const py = Math.round(row * cellPx + cellPx/2);
+      const idx = (py * w + px) * 4;
+      const r = imgData.data[idx];
+      if (r < 128) { // داكن = جزء من الـ QR
+        rects += `<rect x="${(col * cell).toFixed(1)}" y="${(row * cell).toFixed(1)}" width="${cell.toFixed(1)}" height="${cell.toFixed(1)}" fill="${fg}"/>`;
+      }
+    }
+  }
+
+  const svg = `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 ${s} ${s}">
+  <rect width="${s}" height="${s}" fill="${bg}" rx="16"/>
+  ${rects}
+  <text x="${s/2}" y="${s-8}" font-family="Tajawal,sans-serif" font-size="11" font-weight="700" fill="${fg}" text-anchor="middle" opacity="0.6">mangaverse.top</text>
+</svg>`;
+
+  const blob = new Blob([svg], { type: 'image/svg+xml' });
+  const link = document.createElement('a');
+  link.download = 'mangaverse-qr.svg';
+  link.href = URL.createObjectURL(blob);
+  link.click();
+  URL.revokeObjectURL(link.href);
+}
+
+// ── الأحداث ──
+
+// لون QR
+document.getElementById('fg-colors').addEventListener('click', e => {
+  const dot = e.target.closest('.color-dot');
+  if (!dot) return;
+  document.querySelectorAll('#fg-colors .color-dot').forEach(d => d.classList.remove('active'));
+  dot.classList.add('active');
+  fgColor = dot.dataset.color;
+  drawCustomQR();
+});
+
+// لون الخلفية
+document.getElementById('bg-colors').addEventListener('click', e => {
+  const dot = e.target.closest('.color-dot');
+  if (!dot) return;
+  document.querySelectorAll('#bg-colors .color-dot').forEach(d => d.classList.remove('active'));
+  dot.classList.add('active');
+  bgColor = dot.dataset.color;
+  drawCustomQR();
+});
+
+// النمط
+document.getElementById('style-chips').addEventListener('click', e => {
+  const chip = e.target.closest('.chip');
+  if (!chip) return;
+  document.querySelectorAll('#style-chips .chip').forEach(c => c.classList.remove('active'));
+  chip.classList.add('active');
+  qrStyle = chip.dataset.style;
+  drawCustomQR();
+});
+
+// الحجم
+const slider = document.getElementById('size-slider');
+const sizeVal = document.getElementById('size-val');
+slider.addEventListener('input', () => {
+  qrSize = parseInt(slider.value);
+  sizeVal.textContent = qrSize;
+});
+slider.addEventListener('change', () => {
+  qrSize = parseInt(slider.value);
+  drawCustomQR();
+});
+
+// ── تشغيل أولي ──
+window.addEventListener('load', () => {
+  setTimeout(drawCustomQR, 200);
+});
+</script>
+</body>
+</html>
