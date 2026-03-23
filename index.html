@@ -2871,6 +2871,33 @@ window.setCardStyle = (el) => {
   localStorage.setItem("mv_cardstyle", style);
 };
 
+window.setDensity = (el) => {
+  const val = el.dataset.density;
+  if(val === "normal") document.body.removeAttribute("data-density");
+  else document.body.setAttribute("data-density", val);
+  document.querySelectorAll(".achip[data-density]").forEach(b => b.classList.remove("active"));
+  el.classList.add("active");
+  localStorage.setItem("mv_density", val);
+};
+
+window.setThumbRatio = (el) => {
+  const val = el.dataset.ratio;
+  if(val === "default") document.body.removeAttribute("data-thumb-ratio");
+  else document.body.setAttribute("data-thumb-ratio", val);
+  document.querySelectorAll(".achip[data-ratio]").forEach(b => b.classList.remove("active"));
+  el.classList.add("active");
+  localStorage.setItem("mv_ratio", val);
+};
+
+window.setHoverFx = (el) => {
+  const val = el.dataset.hover;
+  if(val === "lift") document.body.removeAttribute("data-hover-fx");
+  else document.body.setAttribute("data-hover-fx", val);
+  document.querySelectorAll(".achip[data-hover]").forEach(b => b.classList.remove("active"));
+  el.classList.add("active");
+  localStorage.setItem("mv_hover", val);
+};
+
 window.setThemeMode = (mode) => {
   const isLight = mode === "light";
   document.body.classList.toggle("light-mode", isLight);
@@ -2892,12 +2919,21 @@ window.resetCustomize = () => {
   // إعادة الوضع الداكن
   document.body.classList.remove("light-mode");
   const btn = G("theme-toggle-btn"); if(btn) btn.textContent = "🌙";
+  // إعادة الكثافة
+  document.body.removeAttribute("data-density");
+  // إعادة نسبة الصورة
+  document.body.removeAttribute("data-thumb-ratio");
+  // إعادة تأثير hover
+  document.body.removeAttribute("data-hover-fx");
   // مسح localStorage
-  ["mv_accent","mv_fontsize","mv_cardstyle","mangaverse_theme"].forEach(k => localStorage.removeItem(k));
+  ["mv_accent","mv_fontsize","mv_cardstyle","mangaverse_theme","mv_density","mv_ratio","mv_hover"].forEach(k => localStorage.removeItem(k));
   // تحديث الـ chips
   G("cust-colors").querySelectorAll(".cust-color").forEach((b,i) => b.classList.toggle("active", i===0));
   G("m-customize").querySelectorAll(".achip[data-size]").forEach((b) => b.classList.toggle("active", b.dataset.size==="16"));
   G("m-customize").querySelectorAll(".achip[data-card]").forEach((b) => b.classList.toggle("active", b.dataset.card==="default"));
+  G("m-customize").querySelectorAll(".achip[data-density]").forEach((b) => b.classList.toggle("active", b.dataset.density==="normal"));
+  G("m-customize").querySelectorAll(".achip[data-ratio]").forEach((b) => b.classList.toggle("active", b.dataset.ratio==="default"));
+  G("m-customize").querySelectorAll(".achip[data-hover]").forEach((b) => b.classList.toggle("active", b.dataset.hover==="lift"));
   G("cust-dark-btn")?.classList.add("active");
   G("cust-light-btn")?.classList.remove("active");
   toast("✅ تم إعادة الضبط!");
@@ -2940,6 +2976,15 @@ function _loadCustomizeSettings(){
 
   const cs = localStorage.getItem("mv_cardstyle");
   if(cs) document.body.setAttribute("data-card-style", cs);
+
+  const dn = localStorage.getItem("mv_density");
+  if(dn && dn !== "normal") document.body.setAttribute("data-density", dn);
+
+  const rt = localStorage.getItem("mv_ratio");
+  if(rt && rt !== "default") document.body.setAttribute("data-thumb-ratio", rt);
+
+  const hv = localStorage.getItem("mv_hover");
+  if(hv && hv !== "lift") document.body.setAttribute("data-hover-fx", hv);
 }
 
 // ─── THEME TOGGLE ───
@@ -2987,7 +3032,7 @@ function updateNavUI(on){
     const sbUname=G("sb-uname"); 
     if(sbUname){
       const _sbPts = window.CUD?.points !== undefined ? window.CUD.points : calcPoints(window.CUD||{});
-      sbUname.innerHTML = glowName(CU.displayName||"مستخدم", {...(window.CUD||{}), points:_sbPts, email:CU.email||""});
+      sbUname.innerHTML = glowName(sanitize(CU.displayName||"مستخدم"), {...(window.CUD||{}), points:_sbPts, email:CU.email||""});
     }
     const sbEmail=G("sb-email"); if(sbEmail) sbEmail.textContent=CU.email||"";
   } else {
@@ -3456,11 +3501,29 @@ body.light-mode .chapter-item.chapter-last-read{background:rgba(245,166,35,.08);
 body.light-mode .cust-color.active{border-color:#333;}
 .cust-chips{display:flex;flex-wrap:wrap;gap:.4rem;}
 
-/* أنماط البطاقات */
-[data-card-style="rounded"] .work-card{border-radius:20px!important;}
-[data-card-style="sharp"]   .work-card{border-radius:4px!important;}
+/* أنماط البطاقات — إصلاح: يستهدف work-thumb أيضاً */
+[data-card-style="rounded"] .work-card .work-thumb{border-radius:16px!important;}
+[data-card-style="rounded"] .work-card{border-radius:20px!important;overflow:hidden;}
+[data-card-style="sharp"]   .work-card .work-thumb{border-radius:2px!important;}
+[data-card-style="sharp"]   .work-card{border-radius:2px!important;overflow:hidden;}
 [data-card-style="glow"]    .work-card{box-shadow:0 0 18px var(--rg)!important;border-color:var(--red)!important;}
 [data-card-style="glow"]    .work-card:hover{box-shadow:0 0 32px var(--rg),0 8px 24px rgba(0,0,0,.4)!important;}
+
+/* ── كثافة العرض ── */
+[data-density="compact"]  .works-grid{grid-template-columns:repeat(auto-fill,minmax(110px,1fr))!important;gap:.5rem!important;}
+[data-density="compact"]  .work-title{font-size:.76rem!important;}
+[data-density="compact"]  .work-meta{font-size:.68rem!important;}
+[data-density="spacious"] .works-grid{grid-template-columns:repeat(auto-fill,minmax(190px,1fr))!important;gap:1.4rem!important;}
+[data-density="spacious"] .work-title{font-size:.95rem!important;}
+
+/* ── نسبة الصورة ── */
+[data-thumb-ratio="square"]  .work-thumb{aspect-ratio:1/1!important;}
+[data-thumb-ratio="wide"]    .work-thumb{aspect-ratio:16/9!important;}
+
+/* ── تأثير hover ── */
+[data-hover-fx="scale"]  .work-card:hover{transform:scale(1.04)!important;}
+[data-hover-fx="glow"]   .work-card:hover{transform:none!important;box-shadow:0 0 28px var(--rg),0 8px 24px rgba(0,0,0,.5)!important;}
+[data-hover-fx="none"]   .work-card:hover{transform:none!important;box-shadow:none!important;}
 
 /* ─── SHARE BUTTONS ─── */
 .share-section{margin-top:1rem;padding-top:.9rem;border-top:1px solid var(--br);}
@@ -3676,7 +3739,7 @@ section{padding:4.5rem 2rem;}
 @media(max-width:320px){
   .works-grid{grid-template-columns:repeat(2,1fr);gap:.5rem;}
 }
-.work-card{cursor:pointer;transition:transform .3s;position:relative;}
+.work-card{cursor:pointer;transition:transform .3s,box-shadow .3s;position:relative;border-radius:10px;overflow:hidden;background:var(--s1);border:1px solid var(--br);}
 .work-card:hover{transform:translateY(-7px);}
 .work-thumb{aspect-ratio:2/3;border-radius:10px;overflow:hidden;position:relative;margin-bottom:.7rem;background:var(--s1);}
 .work-thumb img{width:100%;height:100%;object-fit:cover;display:block;}
@@ -5373,6 +5436,37 @@ if("serviceWorker" in navigator){
       <div class="cust-chips">
         <button class="achip" id="cust-dark-btn" onclick="setThemeMode('dark')">🌙 داكن</button>
         <button class="achip" id="cust-light-btn" onclick="setThemeMode('light')">☀️ فاتح</button>
+      </div>
+    </div>
+
+    <!-- كثافة العرض -->
+    <div class="cust-section">
+      <div class="cust-label">🏗️ كثافة العرض</div>
+      <div class="cust-chips">
+        <button class="achip" data-density="compact" onclick="setDensity(this)">مضغوط</button>
+        <button class="achip active" data-density="normal" onclick="setDensity(this)">عادي</button>
+        <button class="achip" data-density="spacious" onclick="setDensity(this)">واسع</button>
+      </div>
+    </div>
+
+    <!-- نسبة صورة البطاقة -->
+    <div class="cust-section">
+      <div class="cust-label">🖼️ نسبة صورة البطاقة</div>
+      <div class="cust-chips">
+        <button class="achip active" data-ratio="default" onclick="setThumbRatio(this)">مانجا 2:3</button>
+        <button class="achip" data-ratio="square" onclick="setThumbRatio(this)">مربع 1:1</button>
+        <button class="achip" data-ratio="wide" onclick="setThumbRatio(this)">سينمائي 16:9</button>
+      </div>
+    </div>
+
+    <!-- تأثير hover -->
+    <div class="cust-section">
+      <div class="cust-label">✨ تأثير التحويم</div>
+      <div class="cust-chips">
+        <button class="achip active" data-hover="lift" onclick="setHoverFx(this)">رفع ↑</button>
+        <button class="achip" data-hover="scale" onclick="setHoverFx(this)">تكبير 🔍</button>
+        <button class="achip" data-hover="glow" onclick="setHoverFx(this)">توهج ✨</button>
+        <button class="achip" data-hover="none" onclick="setHoverFx(this)">لا شيء</button>
       </div>
     </div>
 
