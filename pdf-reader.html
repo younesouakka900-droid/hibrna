@@ -87,9 +87,9 @@ body{background:var(--bg);color:#f0f0f0;font-family:'Tajawal',sans-serif;height:
 <div id="topbar" style="display:none">
   <button class="tb-btn red" onclick="history.back()">← رجوع</button>
   <span id="pdf-title">جاري التحميل...</span>
-  <div style="display:flex;gap:.4rem">
-    <button class="tb-btn" onclick="toggleMode()" id="mode-btn" title="تبديل وضع القراءة">📜 عمودي</button>
-    <button class="tb-btn" onclick="downloadPdf()" title="تحميل">⬇️</button>
+  <div style="display:flex;align-items:center;gap:.4rem">
+    <span id="topbar-page" style="font-size:.75rem;color:rgba(255,255,255,.45);padding:.2rem .5rem;background:rgba(255,255,255,.05);border-radius:6px"></span>
+    <button class="tb-btn" onclick="downloadPdf()" title="تحميل الملف">⬇️ تحميل</button>
   </div>
 </div>
 
@@ -102,10 +102,10 @@ body{background:var(--bg);color:#f0f0f0;font-family:'Tajawal',sans-serif;height:
 <div id="reader-wrap" style="display:none"></div>
 
 <!-- شريط التنقل -->
-<div id="navbar" style="display:none">
+<div id="navbar" style="display:none!important;visibility:hidden;height:0;overflow:hidden">
   <button class="nav-btn" id="prev-btn" onclick="prevPage()" disabled>›</button>
   <button class="nav-btn" id="zoom-out" onclick="changeZoom(-0.1)">−</button>
-  <span id="page-info">0 / 0</span>
+  <span id="page-info" style="font-size:.78rem;color:rgba(255,255,255,.5);min-width:60px;text-align:center">0 / 0</span>
   <button class="nav-btn" id="zoom-in" onclick="changeZoom(0.1)">+</button>
   <button class="nav-btn" id="next-btn" onclick="nextPage()" disabled>‹</button>
 </div>
@@ -124,7 +124,7 @@ let pdfDoc     = null;
 let totalPages = 0;
 let currentPage= 1;
 let zoom       = 1.0;
-let renderMode = localStorage.getItem(MODE_KEY) || "scroll"; // scroll | paged
+let renderMode = "scroll"; // scroll فقط — حُذف وضع الصفحة
 let rendering  = false;
 let renderQueue= null;
 
@@ -230,8 +230,8 @@ async function init(){
       document.getElementById("reader-wrap").style.display = "flex";
       document.getElementById("navbar").style.display = "flex";
       updateNav();
-      if(renderMode === "scroll") renderAllPages();
-      else renderSinglePage(1);
+      document.getElementById("topbar-page").textContent = "1 / " + totalPages;
+      renderAllPages();
     }, 300);
 
   }catch(e){
@@ -252,7 +252,8 @@ async function renderOnePage(pageNum, container){
   const page = await pdfDoc.getPage(pageNum);
   const vw   = Math.min(document.getElementById("reader-wrap").clientWidth || window.innerWidth, 900);
   const dpr  = window.devicePixelRatio || 1;
-  const base = (vw / page.getViewport({scale:1}).width) * zoom;
+  // نضرب في 1.5 للحصول على نص عربي أوضح
+  const base = (vw / page.getViewport({scale:1}).width) * zoom * 1.5;
   const vp   = page.getViewport({scale: base * dpr});
 
   const canvas = document.createElement("canvas");
@@ -262,6 +263,7 @@ async function renderOnePage(pageNum, container){
   canvas.style.height = (vp.height / dpr) + "px";
   canvas.style.display= "block";
   canvas.style.width  = "100%";
+  canvas.style.imageRendering = "crisp-edges";
 
   const wrap = document.createElement("div");
   wrap.className = "pdf-page-wrap";
@@ -296,7 +298,7 @@ async function renderAllPages(){
 
   updateScrollProgress();
   wrap.addEventListener("scroll", updateScrollProgress, {passive:true});
-  document.getElementById("navbar").style.display = "none";
+  // navbar مخفي دائماً
 }
 
 // ── وضع الصفحة المفردة ──
@@ -317,7 +319,7 @@ function updateNav(){
   document.getElementById("prev-btn").disabled = currentPage <= 1;
   document.getElementById("next-btn").disabled = currentPage >= totalPages;
   document.getElementById("progress-bar").style.width = (currentPage/totalPages*100) + "%";
-  document.getElementById("mode-btn").textContent = renderMode==="scroll" ? "📄 صفحة" : "📜 عمودي";
+  // وضع القراءة ثابت على scroll
 }
 
 function updateScrollProgress(){
@@ -333,6 +335,8 @@ function updateScrollProgress(){
     if(rect.top <= 100 && rect.bottom >= 0){
       const n = parseInt(p.dataset.page);
       document.getElementById("page-info").textContent = n + " / " + totalPages;
+      const tp=document.getElementById("topbar-page");
+      if(tp) tp.textContent = n + " / " + totalPages;
     }
   });
 }
@@ -360,12 +364,27 @@ function toggleMode(){
   updateNav();
 }
 
-// ── تحميل ──
-function downloadPdf(){
-  const a=document.createElement("a");
-  a.href=PDF_URL; a.target="_blank"; a.rel="noopener";
-  a.download=PDF_TITLE+".pdf";
-  a.click();
+// ── تحميل مباشر ──
+async function downloadPdf(){
+  const btn = document.querySelector('[onclick="downloadPdf()"]');
+  if(btn){ btn.textContent="⏳ جاري التحميل..."; btn.style.opacity=".7"; }
+  try{
+    const response = await fetch(PDF_URL, {mode:"cors", credentials:"omit"});
+    if(!response.ok) throw new Error("fetch failed");
+    const blob = await response.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = PDF_TITLE + ".pdf";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(()=> URL.revokeObjectURL(blobUrl), 5000);
+  } catch(e) {
+    // fallback: فتح رابط مباشر
+    window.open(PDF_URL, "_blank", "noopener");
+  }
+  if(btn){ btn.textContent="⬇️"; btn.style.opacity="1"; }
 }
 
 // ── خطأ ──
