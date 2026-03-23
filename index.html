@@ -2605,6 +2605,28 @@ window.loadProfile=async()=>{
     await setDoc(doc(db,"users",CU.uid),{points: realPts, worksCount: allWorks.length, totalViews: realTotalViews},{merge:true});
     window.CUD = {...(window.CUD||{}), points: realPts, worksCount: allWorks.length};
   }catch(e){}
+
+  // ── فحص ومنح الشارات تلقائياً ──
+  try{
+    const freshSnap = await getDoc(doc(db,"users",CU.uid));
+    const freshData = freshSnap.exists() ? freshSnap.data() : {};
+    // نبني بيانات كاملة للفحص
+    const badgeCheckData = {
+      ...freshData,
+      points:      realPts,
+      worksCount:  allWorks.length,
+      totalViews:  realTotalViews,
+      totalLikes:  realTotalLikes,
+      worksRead:   freshData.worksRead   || 0,
+      likesGiven:  freshData.likesGiven  || 0,
+      loginStreak: freshData.loginStreak || 0,
+    };
+    await checkAndAwardBadges(CU.uid, badgeCheckData);
+    // اجلب الشارات المحدثة من Firestore وارسمها
+    const updatedSnap = await getDoc(doc(db,"users",CU.uid));
+    const earnedBadges = updatedSnap.exists() ? (updatedSnap.data().badges || []) : [];
+    renderProfileBadges(earnedBadges);
+  }catch(e){ renderProfileBadges(d.badges||[]); }
   // تحديث فوري
   updateAvatarRing(realPts);
   if(G("p-badge-display")) G("p-badge-display").innerHTML = badgeHTML(realPts, "lg");
