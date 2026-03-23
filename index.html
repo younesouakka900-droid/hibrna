@@ -2498,8 +2498,12 @@ window.loadProfile=async()=>{
   G("p-bio").textContent=smartBio(d,_pPts);
   G("p-loc").textContent=d.location||"غير محدد";
   G("p-email").textContent=CU.email||"";
-  G("p-followers").textContent=(d.followers||[]).length;
-  G("p-following").textContent=(d.following||[]).length;
+  const fCount = (d.followers||[]).length;
+  const fgCount = (d.following||[]).length;
+  G("p-followers").textContent = fCount;
+  G("p-following").textContent = fgCount;
+  const pFollowersMeta = G("p-followers-meta");
+  if(pFollowersMeta) pFollowersMeta.textContent = fCount;
   G("p-bk-count").textContent=(d.bookmarks||[]).length;
   // stats
   G("stat-views").textContent=d.totalViews||0;
@@ -6528,7 +6532,7 @@ if("serviceWorker" in navigator){
         <div class="p-meta">
           <div class="p-mi">📍 <span id="p-loc">المغرب</span></div>
           <div class="p-mi">✉️ <span id="p-email"></span></div>
-          <div class="p-mi">👥 <span id="p-followers">0</span> متابع</div>
+          <div class="p-mi">👥 <span id="p-followers-meta">0</span> متابع</div>
           <div class="p-mi">🔖 <span id="p-bk-count">0</span> محفوظ</div>
         </div>
         <div class="p-social" id="p-social-links"></div>
