@@ -1114,6 +1114,93 @@ window.doEditWork=async()=>{
 let _readerSaveTimer = null;
 let _readerWork = null;
 
+// ─── متغيرات القارئ المحسّن ───
+let _readerMode = 'scroll'; // scroll | paged
+let _readerCurrentPage = 0;
+let _readerTotalPages = 0;
+let _swipeStartX = 0, _swipeStartY = 0;
+
+window.toggleReaderMode = function(){
+  _readerMode = _readerMode === 'scroll' ? 'paged' : 'scroll';
+  const btn = document.getElementById('reader-mode-btn');
+  const cnt = document.getElementById('reader-content');
+  const nav = document.getElementById('reader-paged-nav');
+  if(_readerMode === 'paged'){
+    cnt.classList.add('paged-mode');
+    if(nav) nav.style.display = 'flex';
+    if(btn) btn.textContent = '📄 عمودي';
+    _readerCurrentPage = 0;
+    _renderReaderPage();
+  } else {
+    cnt.classList.remove('paged-mode');
+    if(nav) nav.style.display = 'none';
+    if(btn) btn.textContent = '📜 عمودي';
+    // أظهر كل الصور
+    cnt.querySelectorAll('.reader-img').forEach(img => img.style.display = 'block');
+  }
+};
+
+window.readerNextPage = function(){
+  if(_readerCurrentPage < _readerTotalPages - 1){
+    _readerCurrentPage++;
+    _renderReaderPage();
+  }
+};
+window.readerPrevPage = function(){
+  if(_readerCurrentPage > 0){
+    _readerCurrentPage--;
+    _renderReaderPage();
+  }
+};
+function _renderReaderPage(){
+  const cnt = document.getElementById('reader-content');
+  const imgs = cnt.querySelectorAll('.reader-img');
+  imgs.forEach((img, i) => {
+    img.style.display = i === _readerCurrentPage ? 'block' : 'none';
+    img.classList.toggle('active-page', i === _readerCurrentPage);
+  });
+  const lbl = document.getElementById('reader-page-lbl');
+  if(lbl) lbl.textContent = `${_readerCurrentPage + 1} / ${_readerTotalPages}`;
+  const prev = document.getElementById('reader-prev-btn');
+  const next = document.getElementById('reader-next-btn');
+  if(prev) prev.disabled = _readerCurrentPage === 0;
+  if(next) next.disabled = _readerCurrentPage === _readerTotalPages - 1;
+  const pct = _readerTotalPages > 1 ? Math.round((_readerCurrentPage / (_readerTotalPages - 1)) * 100) : 100;
+  const bar = document.getElementById('reader-progress-bar');
+  if(bar) bar.style.width = pct + '%';
+  const pl = document.getElementById('reader-progress-lbl');
+  if(pl) pl.textContent = `${_readerCurrentPage + 1} / ${_readerTotalPages}`;
+}
+
+// ─── Swipe للمانجا ───
+(function(){
+  let sx=0,sy=0,dragging=false;
+  document.addEventListener('touchstart', e => {
+    if(!e.target.closest('#reader-page')) return;
+    sx = e.touches[0].clientX;
+    sy = e.touches[0].clientY;
+    dragging = true;
+  }, {passive:true});
+  document.addEventListener('touchend', e => {
+    if(!dragging || !e.target.closest('#reader-page')) return;
+    dragging = false;
+    if(_readerMode !== 'paged') return;
+    const dx = e.changedTouches[0].clientX - sx;
+    const dy = e.changedTouches[0].clientY - sy;
+    if(Math.abs(dx) < Math.abs(dy) * 0.8 || Math.abs(dx) < 40) return; // سحب عمودي أو قصير جداً
+    if(dx < 0) window.readerNextPage();
+    else window.readerPrevPage();
+  }, {passive:true});
+  // كيبورد
+  document.addEventListener('keydown', e => {
+    const rp = document.getElementById('reader-page');
+    if(!rp || rp.style.display === 'none') return;
+    if(_readerMode !== 'paged') return;
+    if(e.key === 'ArrowRight' || e.key === 'ArrowDown') window.readerNextPage();
+    if(e.key === 'ArrowLeft'  || e.key === 'ArrowUp')   window.readerPrevPage();
+  });
+})();
+
 window.openReader=async w=>{
   const rd=G("reader-page");
   const cnt=G("reader-content");
@@ -1122,9 +1209,18 @@ window.openReader=async w=>{
   title.textContent=w.title;
   cnt.innerHTML="";
 
+  _readerMode = 'scroll';
+  _readerCurrentPage = 0;
+  _readerTotalPages = w.pages.length;
+  const modeBtn = document.getElementById('reader-mode-btn');
+  if(modeBtn) modeBtn.textContent = '📜 عمودي';
+  const pagedNav = document.getElementById('reader-paged-nav');
+  if(pagedNav) pagedNav.style.display = 'none';
+  cnt.classList.remove('paged-mode');
+
   w.pages.forEach((url,i)=>{
     const img=document.createElement("img");
-    img.loading="lazy";
+    img.loading= i < 3 ? "eager" : "lazy";
     img.src=url;
     img.className="reader-img";
     img.alt=`صفحة ${i+1}`;
@@ -1132,6 +1228,20 @@ window.openReader=async w=>{
     img.oncontextmenu=e=>e.preventDefault();
     cnt.appendChild(img);
   });
+
+  // hint للسحب (يظهر مرة واحدة فقط)
+  try{
+    if(!localStorage.getItem('_swipeHintShown') && w.pages.length > 1){
+      setTimeout(()=>{
+        const h = document.createElement('div');
+        h.className = 'swipe-hint';
+        h.textContent = '← اسحب لتصفح الصفحات في وضع الصفحة ←';
+        document.getElementById('reader-page').appendChild(h);
+        setTimeout(()=>h.remove(), 2200);
+        localStorage.setItem('_swipeHintShown','1');
+      }, 1200);
+    }
+  }catch(e){}
 
   // ── شريط التقدم ──
   const progressBar = G("reader-progress-bar");
@@ -3310,12 +3420,30 @@ window.closeNovelReader = async function(){
   _nvWork = null; _nvChapters = []; _nvChapterIdx = 0;
 };
 
+// ── حفظ إعدادات القارئ ──
+(function(){
+  try{
+    const fs = localStorage.getItem('nv_fontSize');
+    const lh = localStorage.getItem('nv_lineHeight');
+    const th = localStorage.getItem('nv_theme');
+    if(fs) document.documentElement.style.setProperty('--nv-fs', fs+'px');
+    if(lh) document.documentElement.style.setProperty('--nv-lh', lh);
+    if(th) {
+      // سيُطبّق عند فتح القارئ
+      window._nvSavedTheme = th;
+      window._nvSavedFs = fs ? parseInt(fs) : 18;
+      window._nvSavedLh = lh ? parseFloat(lh) : 1.9;
+    }
+  }catch(e){}
+})();
+
 window.nvToggleSettings = function(){
   document.getElementById('nv-settings-panel')?.classList.toggle('open');
 };
 
 window.nvSetTheme = function(btn, theme){
   document.getElementById('novel-reader-page').dataset.theme = theme;
+  try{localStorage.setItem('nv_theme', theme);}catch(e){}
   document.querySelectorAll('.nv-theme-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
   try{ localStorage.setItem('nv_theme',theme); }catch(e){}
@@ -4065,9 +4193,20 @@ body.light-mode .social-input-wrap{background:rgba(0,0,0,.03);}
 .reader-nav{height:56px;background:rgba(8,8,15,.95);border-bottom:1px solid var(--br);display:flex;align-items:center;justify-content:space-between;padding:0 1.5rem;flex-shrink:0;}
 .reader-nav h3{font-size:1rem;font-weight:700;}
 .reader-close{background:var(--red);border:none;color:#fff;width:36px;height:36px;border-radius:8px;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center;}
-#reader-content{flex:1;overflow-y:auto;display:flex;flex-direction:column;align-items:center;gap:0;padding:0;background:#111;}
+#reader-content{flex:1;overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column;align-items:center;gap:0;padding:0;background:#111;scroll-snap-type:none;transition:all .3s;}
+#reader-content.paged-mode{overflow:hidden;justify-content:center;}
+#reader-content.paged-mode .reader-img{display:none;}
+#reader-content.paged-mode .reader-img.active-page{display:block;}
 .reader-img{width:100%;max-width:800px;display:block;user-select:none;-webkit-user-drag:none;}
 .reader-img::selection{background:transparent;}
+.reader-tool-btn{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:rgba(255,255,255,.8);border-radius:8px;padding:.3rem .7rem;font-size:.72rem;font-family:'Tajawal';font-weight:700;cursor:pointer;transition:all .2s;white-space:nowrap;}
+.reader-tool-btn:hover{background:rgba(232,25,44,.2);border-color:var(--red);color:#fff;}
+.reader-nav-btn{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.8);border-radius:10px;padding:.55rem 1.3rem;font-family:'Tajawal';font-size:.85rem;font-weight:800;cursor:pointer;transition:all .2s;flex:1;max-width:140px;}
+.reader-nav-btn:hover:not(:disabled){background:var(--red);border-color:var(--red);color:#fff;}
+.reader-nav-btn:disabled{opacity:.25;cursor:not-allowed;}
+/* swipe hint animation */
+@keyframes swipeHint{0%{opacity:0;transform:translateX(30px)}30%{opacity:1}70%{opacity:1}100%{opacity:0;transform:translateX(-30px)}}
+.swipe-hint{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,.75);color:#fff;border-radius:16px;padding:.8rem 1.5rem;font-size:.9rem;font-weight:800;pointer-events:none;animation:swipeHint 2s ease forwards;z-index:20;white-space:nowrap;}
 /* شريط التقدم */
 #reader-page{position:relative;}
 /* زر الاستئناف — hover effect */
@@ -4654,9 +4793,20 @@ body.light-mode .social-input-wrap{background:rgba(0,0,0,.03);}
 .reader-nav{height:56px;background:rgba(8,8,15,.95);border-bottom:1px solid var(--br);display:flex;align-items:center;justify-content:space-between;padding:0 1.5rem;flex-shrink:0;}
 .reader-nav h3{font-size:1rem;font-weight:700;}
 .reader-close{background:var(--red);border:none;color:#fff;width:36px;height:36px;border-radius:8px;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center;}
-#reader-content{flex:1;overflow-y:auto;display:flex;flex-direction:column;align-items:center;gap:0;padding:0;background:#111;}
+#reader-content{flex:1;overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column;align-items:center;gap:0;padding:0;background:#111;scroll-snap-type:none;transition:all .3s;}
+#reader-content.paged-mode{overflow:hidden;justify-content:center;}
+#reader-content.paged-mode .reader-img{display:none;}
+#reader-content.paged-mode .reader-img.active-page{display:block;}
 .reader-img{width:100%;max-width:800px;display:block;user-select:none;-webkit-user-drag:none;}
 .reader-img::selection{background:transparent;}
+.reader-tool-btn{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:rgba(255,255,255,.8);border-radius:8px;padding:.3rem .7rem;font-size:.72rem;font-family:'Tajawal';font-weight:700;cursor:pointer;transition:all .2s;white-space:nowrap;}
+.reader-tool-btn:hover{background:rgba(232,25,44,.2);border-color:var(--red);color:#fff;}
+.reader-nav-btn{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.8);border-radius:10px;padding:.55rem 1.3rem;font-family:'Tajawal';font-size:.85rem;font-weight:800;cursor:pointer;transition:all .2s;flex:1;max-width:140px;}
+.reader-nav-btn:hover:not(:disabled){background:var(--red);border-color:var(--red);color:#fff;}
+.reader-nav-btn:disabled{opacity:.25;cursor:not-allowed;}
+/* swipe hint animation */
+@keyframes swipeHint{0%{opacity:0;transform:translateX(30px)}30%{opacity:1}70%{opacity:1}100%{opacity:0;transform:translateX(-30px)}}
+.swipe-hint{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,.75);color:#fff;border-radius:16px;padding:.8rem 1.5rem;font-size:.9rem;font-weight:800;pointer-events:none;animation:swipeHint 2s ease forwards;z-index:20;white-space:nowrap;}
 /* شريط التقدم */
 #reader-page{position:relative;}
 /* زر الاستئناف — hover effect */
@@ -5253,7 +5403,8 @@ if("serviceWorker" in navigator){
 <div id="reader-page">
   <div class="reader-nav">
     <h3 id="reader-title">القارئ</h3>
-    <div style="display:flex;align-items:center;gap:.8rem">
+    <div style="display:flex;align-items:center;gap:.6rem">
+      <button class="reader-tool-btn" id="reader-mode-btn" onclick="window.toggleReaderMode()" title="تبديل وضع القراءة">📜 عمودي</button>
       <span id="reader-progress-lbl" style="font-size:.78rem;color:rgba(255,255,255,.5);font-weight:700"></span>
       <button class="reader-close" onclick="closeReader()" aria-label="إغلاق القارئ">✕</button>
     </div>
@@ -5271,7 +5422,14 @@ if("serviceWorker" in navigator){
     </div>
     <span style="color:var(--red);font-size:.8rem;font-weight:800">←</span>
   </div>
+  <!-- منطقة القراءة + أزرار التنقل (وضع الصفحة) -->
   <div id="reader-content"></div>
+  <!-- أزرار التنقل بين الصفحات — تظهر في وضع الصفحة الواحدة فقط -->
+  <div id="reader-paged-nav" style="display:none;flex-shrink:0;background:rgba(8,8,15,.97);border-top:1px solid rgba(255,255,255,.07);padding:.6rem 1.2rem;align-items:center;justify-content:space-between;gap:1rem">
+    <button class="reader-nav-btn" id="reader-prev-btn" onclick="window.readerPrevPage()">→ السابقة</button>
+    <span id="reader-page-lbl" style="font-size:.82rem;color:rgba(255,255,255,.45);font-weight:800">1 / 1</span>
+    <button class="reader-nav-btn" id="reader-next-btn" onclick="window.readerNextPage()">التالية ←</button>
+  </div>
 </div>
 
 <!-- ═══════════════════════════════════════
@@ -7710,7 +7868,21 @@ window.loadContinueReading = async () => {
       const ago=w.progress.updatedAt?.toDate?_crAgo(w.progress.updatedAt.toDate()):"";
       const ch=w.progress.chapterTitle?`📖 ${w.progress.chapterTitle}`:"";
       const cover=w.coverUrl?`<img class="cr-cover" src="${w.coverUrl}" alt="" loading="lazy">`:`<div class="cr-cover-def">${["رواية","كتاب"].includes(w.type)?"📖":"📚"}</div>`;
-      return `<div class="cr-card" onclick="openWork('${w.id}')">${cover}<div class="cr-info"><div class="cr-title">${w.title||"عمل"}</div><div class="cr-meta">${ch?`<span>${ch}</span>`:""} ${ago?`<span style="opacity:.6">• ${ago}</span>`:""}</div><div class="cr-progress-wrap"><div class="cr-progress-bar" style="width:${pct}%"></div></div></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:.4rem;flex-shrink:0"><span class="cr-badge">${Math.round(pct)}%</span><span style="font-size:.68rem;color:var(--mu)">${w.type||""}</span></div></div>`;
+      const isFinished = pct >= 95;
+      const progressColor = isFinished ? '#10b981' : pct > 50 ? '#f59e0b' : 'var(--red)';
+      return `<div class="cr-card" onclick="openWork('${w.id}')" style="position:relative;overflow:hidden">
+        <div style="position:absolute;inset:0;background:linear-gradient(90deg,rgba(232,25,44,.03) ${pct}%,transparent ${pct}%);pointer-events:none;transition:all .5s"></div>
+        ${cover}
+        <div class="cr-info" style="flex:1;min-width:0">
+          <div class="cr-title">${w.title||"عمل"}</div>
+          <div class="cr-meta">${ch?`<span>${ch}</span>`:""} ${ago?`<span style="opacity:.5">• ${ago}</span>`:""}</div>
+          <div style="display:flex;align-items:center;gap:.6rem;margin-top:.4rem">
+            <div class="cr-progress-wrap" style="flex:1"><div class="cr-progress-bar" style="width:${pct}%;background:${progressColor}"></div></div>
+            <span style="font-size:.68rem;font-weight:900;color:${progressColor};flex-shrink:0">${isFinished ? '✅ مكتمل' : Math.round(pct)+'%'}</span>
+          </div>
+        </div>
+        <button onclick="event.stopPropagation();openWork('${w.id}')" style="flex-shrink:0;background:${isFinished?'rgba(16,185,129,.15)':'rgba(232,25,44,.12)'};border:1px solid ${isFinished?'rgba(16,185,129,.3)':'rgba(232,25,44,.3)'};color:${isFinished?'#10b981':'var(--red)'};border-radius:10px;padding:.45rem .9rem;font-family:'Tajawal';font-size:.78rem;font-weight:800;cursor:pointer;white-space:nowrap;transition:all .2s" onmouseover="this.style.opacity='.8'" onmouseout="this.style.opacity='1'">${isFinished ? '🔁 إعادة' : '▶ أكمل'}</button>
+      </div>`;
     }).join("");
   }catch(e){sec.style.display="none";}
 };
