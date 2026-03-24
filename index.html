@@ -1530,59 +1530,217 @@ window.rateWork=async(wid,stars)=>{
   G("wm-avg").textContent=`(⭐ ${avg.toFixed(1)} من ${vals.length} تقييم)`;
 };
 
-// ─── COMMENTS ───
-window.loadComments=async wid=>{
-  const box=G("wm-comments");
+// ─── COMMENTS (مع نظام الرد) ───
+
+// بناء عنصر تعليق واحد (يُستخدم للتعليق الأساسي والردود)
+function _buildCommentEl(d, wid, isReply=false){
+  const c = d.data();
+  const div = document.createElement("div");
+  div.className = isReply ? "comment-item comment-reply" : "comment-item";
+  div.dataset.cid = d.id;
+
+  // الصورة الرمزية
+  const avDiv = document.createElement("div");
+  avDiv.className = "comment-av";
+  avDiv.textContent = (c.authorName||"U").substring(0,1).toUpperCase();
+  if(c.authorAvatar){
+    avDiv.style.backgroundImage=`url(${c.authorAvatar})`;
+    avDiv.style.backgroundSize="cover";
+    avDiv.textContent="";
+  }
+
+  // المحتوى
+  const infoDiv = document.createElement("div"); infoDiv.style.flex="1";
+  const nameRow = document.createElement("div"); nameRow.style.cssText="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;";
+  const nameEl = document.createElement("span"); nameEl.className="comment-name"; nameEl.textContent=c.authorName||"مجهول";
+  const timeEl = document.createElement("span");
+  timeEl.style.cssText="font-size:.68rem;color:rgba(255,255,255,.25);";
+  timeEl.textContent = c.createdAt?.toDate ? _timeAgo(c.createdAt.toDate()) : "";
+  nameRow.appendChild(nameEl); nameRow.appendChild(timeEl);
+
+  // نص التعليق — مع إظهار الرد على من
+  const txtDiv = document.createElement("div"); txtDiv.className="comment-txt";
+  if(c.replyToName){
+    const mention = document.createElement("span");
+    mention.style.cssText="color:var(--red);font-weight:700;margin-left:.3rem;font-size:.82rem;";
+    mention.textContent="@"+c.replyToName+" ";
+    txtDiv.appendChild(mention);
+  }
+  const txtNode = document.createTextNode(c.text||"");
+  txtDiv.appendChild(txtNode);
+
+  infoDiv.appendChild(nameRow); infoDiv.appendChild(txtDiv);
+
+  // صف الأزرار (رد + إعجاب + حذف)
+  const actRow = document.createElement("div"); actRow.className="comment-actions";
+
+  // زر الرد
+  if(CU && !isReply){
+    const replyBtn = document.createElement("button");
+    replyBtn.className="comment-action-btn";
+    replyBtn.textContent="↩ رد";
+    replyBtn.onclick=()=>window._openReplyBox(d.id, c.authorName, wid);
+    actRow.appendChild(replyBtn);
+  }
+
+  // زر الإعجاب على التعليق
+  const likeBtn = document.createElement("button");
+  likeBtn.className="comment-action-btn comment-like-btn";
+  const likedBy = c.likedBy||[];
+  const isLiked = CU && likedBy.includes(CU.uid);
+  likeBtn.innerHTML = `${isLiked?"❤️":"🤍"} <span>${likedBy.length||""}</span>`;
+  likeBtn.onclick=()=>window._toggleCommentLike(wid, d.id, likeBtn, isReply);
+  actRow.appendChild(likeBtn);
+
+  // زر حذف (مالك التعليق أو مدير)
+  if(CU && (isAdmin() || c.authorId===CU.uid)){
+    const delBtn = document.createElement("button");
+    delBtn.textContent="🗑️";
+    delBtn.title="حذف التعليق";
+    delBtn.style.cssText="background:rgba(232,25,44,.12);border:1px solid rgba(232,25,44,.25);color:var(--red);border-radius:6px;padding:.2rem .45rem;cursor:pointer;font-size:.75rem;";
+    delBtn.onclick=()=>window.adminDeleteComment(wid, d.id, c.text);
+    actRow.appendChild(delBtn);
+  }
+
+  infoDiv.appendChild(actRow);
+  div.appendChild(avDiv); div.appendChild(infoDiv);
+  return div;
+}
+
+window.loadComments = async wid=>{
+  const box = G("wm-comments");
   box.innerHTML='<div style="color:var(--mu);font-size:.85rem;text-align:center">⏳</div>';
   try{
-    const q=query(collection(db,"works",wid,"comments"),orderBy("createdAt","asc"));
-    const snap=await getDocs(q);
-    if(snap.empty){box.innerHTML='<div style="color:var(--mu);font-size:.85rem;text-align:center">لا توجد تعليقات بعد 💬</div>';return;}
+    // جلب التعليقات الأساسية (بدون parentId)
+    const q = query(collection(db,"works",wid,"comments"), orderBy("createdAt","asc"));
+    const snap = await getDocs(q);
+    if(snap.empty){ box.innerHTML='<div style="color:var(--mu);font-size:.85rem;text-align:center">لا توجد تعليقات بعد 💬</div>'; return; }
+
     box.innerHTML="";
-    snap.forEach(d=>{
-      const c=d.data();
-      const div=document.createElement("div"); div.className="comment-item";
-      // XSS-safe
-      const avDiv=document.createElement("div"); avDiv.className="comment-av";
-      avDiv.textContent=(c.authorName||"U").substring(0,1);
-      const infoDiv=document.createElement("div"); infoDiv.style.flex="1";
-      const nameDiv=document.createElement("div"); nameDiv.className="comment-name";
-      nameDiv.textContent=c.authorName||"مجهول";
-      const txtDiv=document.createElement("div"); txtDiv.className="comment-txt";
-      txtDiv.textContent=c.text||"";
-      infoDiv.appendChild(nameDiv); infoDiv.appendChild(txtDiv);
-      div.appendChild(avDiv); div.appendChild(infoDiv);
-      // زر حذف للمدير فقط
-      if(isAdmin()){
-        const delBtn=document.createElement("button");
-        delBtn.textContent="🗑️";
-        delBtn.title="حذف التعليق (مدير)";
-        delBtn.style.cssText="background:rgba(232,25,44,.15);border:1px solid rgba(232,25,44,.3);color:var(--red);border-radius:6px;padding:.25rem .5rem;cursor:pointer;font-size:.8rem;flex-shrink:0;";
-        delBtn.onclick=()=>window.adminDeleteComment(wid, d.id, c.text);
-        div.appendChild(delBtn);
+    const allDocs = snap.docs;
+    const topLevel = allDocs.filter(d=>!d.data().parentId);
+    const replies  = allDocs.filter(d=>!!d.data().parentId);
+
+    topLevel.forEach(d=>{
+      const commentEl = _buildCommentEl(d, wid, false);
+      box.appendChild(commentEl);
+
+      // إضافة مكان حقل الرد تحت كل تعليق
+      const replyBoxWrap = document.createElement("div");
+      replyBoxWrap.id="reply-box-"+d.id;
+      replyBoxWrap.style.display="none";
+      box.appendChild(replyBoxWrap);
+
+      // إضافة ردود هذا التعليق
+      const myReplies = replies.filter(r=>r.data().parentId===d.id);
+      if(myReplies.length){
+        const repliesWrap = document.createElement("div");
+        repliesWrap.className="replies-wrap";
+        myReplies.forEach(r=>{ repliesWrap.appendChild(_buildCommentEl(r, wid, true)); });
+        box.appendChild(repliesWrap);
       }
-      box.appendChild(div);
     });
-    box.scrollTop=box.scrollHeight;
-  }catch(e){}
+
+    box.scrollTop = box.scrollHeight;
+  }catch(e){ box.innerHTML='<div style="color:var(--mu);font-size:.85rem;text-align:center">❌ خطأ في التحميل</div>'; }
 };
+
+// فتح حقل الرد
+window._openReplyBox = (parentId, parentName, wid) => {
+  // أغلق أي حقل رد مفتوح آخر
+  document.querySelectorAll('.reply-input-wrap').forEach(el=>el.remove());
+  document.querySelectorAll('[id^="reply-box-"]').forEach(el=>el.style.display="none");
+
+  const wrap = G("reply-box-"+parentId);
+  if(!wrap) return;
+
+  // إذا كان مفتوحاً بالفعل أغلقه
+  if(wrap.style.display==="block"){ wrap.style.display="none"; wrap.innerHTML=""; return; }
+
+  wrap.style.display="block";
+  wrap.innerHTML="";
+
+  const rWrap = document.createElement("div"); rWrap.className="reply-input-wrap";
+  const mention = document.createElement("span"); mention.className="reply-mention"; mention.textContent="@"+parentName;
+  const inp = document.createElement("input");
+  inp.type="text"; inp.className="reply-inp"; inp.placeholder="اكتب ردك..."; inp.maxLength=500;
+  inp.onkeydown=e=>{ if(e.key==="Enter") window._submitReply(parentId, parentName, wid, inp); };
+
+  const sendBtn = document.createElement("button"); sendBtn.className="reply-send-btn"; sendBtn.textContent="إرسال";
+  sendBtn.onclick=()=>window._submitReply(parentId, parentName, wid, inp);
+
+  const cancelBtn = document.createElement("button"); cancelBtn.className="reply-cancel-btn"; cancelBtn.textContent="✕";
+  cancelBtn.onclick=()=>{ wrap.style.display="none"; wrap.innerHTML=""; };
+
+  rWrap.appendChild(mention); rWrap.appendChild(inp); rWrap.appendChild(sendBtn); rWrap.appendChild(cancelBtn);
+  wrap.appendChild(rWrap);
+  setTimeout(()=>inp.focus(), 50);
+};
+
+// إرسال الرد
+window._submitReply = async (parentId, parentName, wid, inp) => {
+  if(!CU) return openModal("m-auth");
+  const text = inp.value.trim();
+  if(!text) return;
+  if(text.length>500) return toast("⚠️ الرد طويل جداً — الحد 500 حرف","w");
+  inp.disabled=true;
+  try{
+    await addDoc(collection(db,"works",wid,"comments"),{
+      authorId:CU.uid,
+      authorName:CU.displayName||"مستخدم",
+      authorAvatar:CUD?.avatarUrl||"",
+      text,
+      parentId,
+      replyToName:parentName,
+      likedBy:[],
+      createdAt:serverTimestamp()
+    });
+    // إشعار لصاحب التعليق الأصلي (إذا كان غير الراد)
+    const parentSnap = await getDoc(doc(db,"works",wid,"comments",parentId));
+    if(parentSnap.exists()){
+      const parentData = parentSnap.data();
+      if(parentData.authorId && parentData.authorId!==CU.uid){
+        await addDoc(collection(db,"notifications"),{
+          toUid:parentData.authorId, fromName:CU.displayName||"مستخدم",
+          msg:`ردّ على تعليقك في «${window._wd?.title||"عمل"}»`,
+          read:false, createdAt:serverTimestamp(), workId:wid, fromUid:CU.uid
+        });
+      }
+    }
+    loadComments(wid);
+  }catch(e){ toast("❌ فشل إرسال الرد","e"); inp.disabled=false; }
+};
+
+// إعجاب بتعليق
+window._toggleCommentLike = async (wid, cid, btn, isReply) => {
+  if(!CU) return openModal("m-auth");
+  const ref = doc(db,"works",wid,"comments",cid);
+  const snap = await getDoc(ref);
+  if(!snap.exists()) return;
+  const likedBy = snap.data().likedBy||[];
+  const isLiked = likedBy.includes(CU.uid);
+  const newLikedBy = isLiked ? likedBy.filter(x=>x!==CU.uid) : [...likedBy, CU.uid];
+  await updateDoc(ref,{likedBy:newLikedBy});
+  const span = btn.querySelector("span");
+  btn.innerHTML = `${newLikedBy.includes(CU.uid)?"❤️":"🤍"} <span>${newLikedBy.length||""}</span>`;
+};
+
 // ─── Rate Limiting: منع Spam التعليقات ───
 let _lastCommentTime = 0;
 window.doComment=async()=>{
   if(!CU) return openModal("m-auth");
   const text=V("comment-inp").trim(); if(!text) return;
-  // ✅ Rate Limit: 4 ثوانٍ بين كل تعليق وآخر
   const now = Date.now();
   if(now - _lastCommentTime < 4000) return toast("⚠️ انتظر قليلاً قبل التعليق مجدداً","w");
   _lastCommentTime = now;
-  // ✅ حد أقصى 500 حرف للتعليق
   if(text.length > 500) return toast("⚠️ التعليق طويل جداً — الحد الأقصى 500 حرف","w");
   try{
     await addDoc(collection(db,"works",window._wid,"comments"),{
-      authorId:CU.uid,authorName:CU.displayName||"مستخدم",
-      text,createdAt:serverTimestamp()
+      authorId:CU.uid, authorName:CU.displayName||"مستخدم",
+      authorAvatar:CUD?.avatarUrl||"",
+      text, parentId:null, likedBy:[],
+      createdAt:serverTimestamp()
     });
-    // ✅ تحديث نقاط صاحب العمل عند التعليق
     if(window._wd?.authorId) updateUserPoints(window._wd.authorId);
     G("comment-inp").value=""; loadComments(window._wid);
     const w=window._wd;
@@ -4289,15 +4447,27 @@ textarea.fc{resize:none;}
 .wa-audio{background:linear-gradient(135deg,#8b5cf6,#6d28d9);color:#fff;}
 .wa-trailer{background:linear-gradient(135deg,#ef4444,#b91c1c);color:#fff;}
 .wm-comments-section h4{font-size:.93rem;font-weight:800;margin-bottom:1rem;}
-.comments-box{max-height:160px;overflow-y:auto;display:flex;flex-direction:column;gap:.7rem;margin-bottom:.8rem;}
-.comment-item{display:flex;gap:.6rem;align-items:flex-start;}
-.comment-av{width:28px;height:28px;border-radius:50%;background:var(--red);display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:800;flex-shrink:0;}
-.comment-name{font-size:.73rem;font-weight:700;color:var(--red);margin-bottom:2px;}
-.comment-txt{font-size:.82rem;color:var(--mu);line-height:1.5;}
+.comments-box{max-height:360px;overflow-y:auto;display:flex;flex-direction:column;gap:.3rem;margin-bottom:.8rem;}
+.comment-item{display:flex;gap:.6rem;align-items:flex-start;padding:.5rem .5rem;border-radius:10px;transition:background .2s;}
+.comment-av{width:28px;height:28px;border-radius:50%;background:var(--red);display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:800;flex-shrink:0;background-size:cover;background-position:center;}
+.comment-name{font-size:.73rem;font-weight:700;color:var(--red);margin-bottom:1px;}
+.comment-txt{font-size:.82rem;color:rgba(255,255,255,.72);line-height:1.55;}
 .comment-row{display:flex;gap:.6rem;}
 .comment-row input{flex:1;background:rgba(255,255,255,.04);border:1px solid var(--br);border-radius:8px;color:var(--w);font-family:'Tajawal';font-size:.87rem;padding:.58rem .9rem;outline:none;transition:border-color .3s;}
 .comment-row input:focus{border-color:var(--red);}
 .comment-send{background:var(--red);border:none;color:#fff;border-radius:8px;padding:.58rem 1rem;font-family:'Tajawal';font-size:.87rem;font-weight:700;cursor:pointer;}
+.comment-item:hover{background:rgba(255,255,255,.03);}
+.comment-reply{margin-right:2rem;border-right:2px solid rgba(232,25,44,.2);padding-right:.7rem;}
+.comment-actions{display:flex;gap:.4rem;margin-top:.3rem;align-items:center;flex-wrap:wrap;}
+.comment-action-btn{background:transparent;border:none;color:rgba(255,255,255,.3);font-family:Tajawal;font-size:.72rem;cursor:pointer;padding:.1rem .35rem;border-radius:5px;transition:all .2s;display:inline-flex;align-items:center;gap:.2rem;}
+.comment-action-btn:hover{background:rgba(255,255,255,.06);color:rgba(255,255,255,.7);}
+.replies-wrap{display:flex;flex-direction:column;gap:.2rem;margin-bottom:.2rem;}
+.reply-input-wrap{display:flex;align-items:center;gap:.5rem;margin-right:2.2rem;margin-bottom:.5rem;padding:.45rem .65rem;background:rgba(255,255,255,.03);border:1px solid rgba(232,25,44,.18);border-radius:10px;}
+.reply-mention{color:var(--red);font-size:.76rem;font-weight:700;white-space:nowrap;flex-shrink:0;}
+.reply-inp{flex:1;background:transparent;border:none;color:var(--w);font-family:Tajawal;font-size:.82rem;outline:none;min-width:0;}
+.reply-send-btn{background:var(--red);border:none;color:#fff;border-radius:7px;padding:.28rem .75rem;font-family:Tajawal;font-size:.76rem;font-weight:700;cursor:pointer;flex-shrink:0;}
+.reply-cancel-btn{background:transparent;border:none;color:rgba(255,255,255,.25);font-family:Tajawal;font-size:.82rem;cursor:pointer;padding:.2rem .3rem;}
+@keyframes commentFadeIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
 
 /* TOAST */
 .toast{position:fixed;bottom:2rem;left:50%;transform:translateX(-50%) translateY(80px);background:var(--s2);border:1px solid rgba(232,25,44,.3);border-radius:12px;padding:.82rem 1.8rem;z-index:99999;transition:transform .4s cubic-bezier(.34,1.56,.64,1);font-size:.9rem;font-weight:600;box-shadow:0 10px 40px rgba(0,0,0,.5);white-space:nowrap;max-width:90vw;}
@@ -4897,11 +5067,11 @@ textarea.fc{resize:none;}
 .wa-audio{background:linear-gradient(135deg,#8b5cf6,#6d28d9);color:#fff;}
 .wa-trailer{background:linear-gradient(135deg,#ef4444,#b91c1c);color:#fff;}
 .wm-comments-section h4{font-size:.93rem;font-weight:800;margin-bottom:1rem;}
-.comments-box{max-height:160px;overflow-y:auto;display:flex;flex-direction:column;gap:.7rem;margin-bottom:.8rem;}
-.comment-item{display:flex;gap:.6rem;align-items:flex-start;}
-.comment-av{width:28px;height:28px;border-radius:50%;background:var(--red);display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:800;flex-shrink:0;}
-.comment-name{font-size:.73rem;font-weight:700;color:var(--red);margin-bottom:2px;}
-.comment-txt{font-size:.82rem;color:var(--mu);line-height:1.5;}
+.comments-box{max-height:360px;overflow-y:auto;display:flex;flex-direction:column;gap:.3rem;margin-bottom:.8rem;}
+.comment-item{display:flex;gap:.6rem;align-items:flex-start;padding:.5rem .5rem;border-radius:10px;transition:background .2s;}
+.comment-av{width:28px;height:28px;border-radius:50%;background:var(--red);display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:800;flex-shrink:0;background-size:cover;}
+.comment-name{font-size:.73rem;font-weight:700;color:var(--red);margin-bottom:1px;}
+.comment-txt{font-size:.82rem;color:rgba(255,255,255,.72);line-height:1.55;}
 .comment-row{display:flex;gap:.6rem;}
 .comment-row input{flex:1;background:rgba(255,255,255,.04);border:1px solid var(--br);border-radius:8px;color:var(--w);font-family:'Tajawal';font-size:.87rem;padding:.58rem .9rem;outline:none;transition:border-color .3s;}
 .comment-row input:focus{border-color:var(--red);}
